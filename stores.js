@@ -77,8 +77,13 @@ function storePreview(text) {
   if (!f) return { err: '머리글에서 「매장명 · 지역 · 형태」를 찾지 못했습니다. 1행 머리글까지 같이 복사해 주세요.' };
   const seen = new Set(), keep = [], ex = { name: 0, team: 0, type: 0, dup: 0 };
   const xt = EXCLUDE_TEAMS.map(nk), it = INCLUDE_TYPES.map(nk);
+  /* D1.4 병합된 칸: 엑셀에서 복사하면 병합된 칸은 첫 줄에만 값이 있고 나머지는 빈칸
+     → 지역(팀) · 형태가 비어 있으면 바로 위 줄의 값을 이어서 씀 (빼는 매장 줄도 위 값으로 셈) */
+  let upTeam = '', upType = '', filled = 0;
   rows.slice(f.row + 1).forEach((r) => {
-    const name = cellOf(r, f.idx.name), team = cellOf(r, f.idx.team), type = cellOf(r, f.idx.type);
+    const name = cellOf(r, f.idx.name); let team = cellOf(r, f.idx.team), type = cellOf(r, f.idx.type);
+    if (!team && upTeam) { team = upTeam; filled++; } if (!type && upType) type = upType;
+    if (team) upTeam = team; if (type) upType = type;
     if (!name) return;
     if (EXCLUDE_NAME_WORDS.some((w) => nk(name).includes(w))) { ex.name++; return; }
     if (xt.includes(nk(team))) { ex.team++; return; }
@@ -91,7 +96,7 @@ function storePreview(text) {
   const cur = new Map(SD.stores.map((s) => [s.key, s])), add = [], chg = [];
   keep.forEach((s) => { const o = cur.get(s.key); if (!o) add.push(s); else if (o.team !== s.team || o.type !== s.type || o.closed || o.name !== s.name) chg.push({ ...o, name: s.name, team: s.team, type: s.type, closed: false }); });
   const gone = SD.stores.filter((s) => !s.closed && !seen.has(s.key));
-  return { lines: rows.length - f.row - 1, keep, ex, unknown, noTeam, add, chg, gone, same: keep.length - add.length - chg.length, pick: {} };
+  return { lines: rows.length - f.row - 1, keep, ex, unknown, noTeam, filled, add, chg, gone, same: keep.length - add.length - chg.length, pick: {} };
 }
 /* 연결표에 있는 부서 목록 (모르는 팀을 정할 때 고르는 칸) */
 function deptChoices() {
@@ -221,7 +226,8 @@ function uploadView() {
   const first = !SD.stores.length, uk = Object.keys(PV.unknown).sort(sortKo), ch = deptChoices();
   h += '<div class="pv"><div><span>붙여넣은 줄</span><b>' + PV.lines.toLocaleString() + '줄</b></div><div><span class="ok">가져올 매장</span><b class="ok">' + PV.keep.length.toLocaleString() + '개</b></div>'
     + '<div><span>빼는 매장 · 가맹 팀</span><b>' + PV.ex.team + '</b></div><div><span>빼는 매장 · 형태 (유통점 · 유통행사 · 직영점 아님)</span><b>' + PV.ex.type + '</b></div><div><span>빼는 매장 · 이름에 「폐점」</span><b>' + PV.ex.name + '</b></div>'
-    + (PV.ex.dup ? '<div><span>같은 이름 (하나만 넣음)</span><b>' + PV.ex.dup + '</b></div>' : '') + '</div>';
+    + (PV.ex.dup ? '<div><span>같은 이름 (하나만 넣음)</span><b>' + PV.ex.dup + '</b></div>' : '')
+    + (PV.filled ? '<div><span>병합된 칸 → 위 줄 팀으로 채움</span><b>' + PV.filled.toLocaleString() + '줄</b></div>' : '') + '</div>';
   if (!first) h += '<div class="pv"><div><span class="ok">새로 생긴 매장</span><b class="ok">+ ' + PV.add.length + '</b></div><div><span>팀 · 형태가 바뀐 매장</span><b>' + PV.chg.length + '</b></div>'
     + '<div><span class="bad">이번 목록에서 없어진 매장 → 폐점 표시</span><b class="bad">' + PV.gone.length + '</b></div><div><span>그대로</span><b>' + PV.same + '</b></div></div>'
     + (PV.add.length + PV.chg.length + PV.gone.length ? '<details class="dt"><summary>바뀌는 매장 목록 보기</summary>' + [['새로', PV.add], ['바뀜', PV.chg], ['폐점', PV.gone]].map(([l, L]) => L.slice(0, 80).map((s) => '<div><span class="pill">' + l + '</span> ' + esc(s.name) + ' <span class="muted">' + esc(s.team || '') + ' · ' + esc(s.type || '') + '</span></div>').join('')).join('') + '</details>' : '');
