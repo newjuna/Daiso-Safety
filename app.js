@@ -1,6 +1,6 @@
 /* 다이소 안전 · 첫 화면 (로그인 → 팀원 확인 → 업무 고르기) · 팀원 관리 = 조직도 방식 */
 // ★ 화면 버전: 바꿀 때마다 index.html 의 ?v= 와 같이 올림
-const UI_VERSION = '26.10.29 D1.1';
+const UI_VERSION = '26.10.29 D1.2';
 // 고정 마스터 (firestore.rules 와 같은 값 · 화면에서 못 끔)
 const MASTER_EMAILS = ['zxcv6309@gmail.com'];
 
@@ -78,13 +78,13 @@ function noAccessView() {
 }
 
 /* ---------- 틀 (상단 바 + 메뉴) ---------- */
-const TITLE = { home: '다이소 안전', store: '매장 밀착지원', members: '팀원 관리' };
+const TITLE = { home: '다이소 안전', store: '매장 밀착지원', members: '팀원 관리', stores: '매장 관리' };
 function frame(inner, wide) {
   const m = (v, i, t, s) => '<button type="button" class="' + (VIEW === v ? 'on' : '') + '" data-go="' + v + '">' + ic(i) + t + (s ? '<small>' + s + '</small>' : '') + '</button>';
   $('app').innerHTML = '<div class="page' + (wide ? ' wide' : '') + '"><div class="bar"><span class="dot"></span>' + esc(TITLE[VIEW]) + '<button class="mbtn" type="button" id="mbtn" aria-label="메뉴">' + ic(MENU ? 'x' : 'menu', 24) + '</button></div>'
     + '<div class="body">' + inner + '</div>'
     + (MENU ? '<div class="shade" id="shade"></div><div class="menu">' + m('home', 'home', '업무 고르기') + m('store', 'store', '매장 밀착지원')
-      + (ME.master ? m('members', 'users', '팀원 관리', '마스터') : '')
+      + (ME.master ? m('members', 'users', '팀원 관리', '마스터') + m('stores', 'list', '매장 관리', '마스터') : '')
       + '<button type="button" id="pwa">' + ic('install') + '홈 화면에 앱 추가</button><button type="button" id="out">' + ic('logout') + '로그아웃</button><div class="ver">버전 ' + UI_VERSION + '</div></div>' : '')
     + '</div>';
   $('mbtn').onclick = () => { MENU = !MENU; render(); };
@@ -95,7 +95,7 @@ function frame(inner, wide) {
     $('pwa').onclick = () => { MENU = false; render(); toast('홈 화면 앱은 다음 차례에 연결합니다'); };
   }
 }
-function go(v) { VIEW = v; MENU = false; FORM = null; ASK = ''; render(); window.scrollTo(0, 0); }
+function go(v) { VIEW = v; MENU = false; FORM = null; ASK = ''; if (v === 'stores' && typeof SM !== 'undefined') { SM = 'list'; PV = null; TPV = null; SEDIT = ''; TEDIT = ''; } render(); window.scrollTo(0, 0); }
 
 /* ---------- 업무 고르기 ---------- */
 function homeView() {
@@ -266,6 +266,7 @@ function render() {
   if (!ME.member) return noAccessView();
   if (VIEW === 'store') return storeView();
   if (VIEW === 'members') return membersView();
+  if (VIEW === 'stores') return storesView();
   return homeView();
 }
 auth.getRedirectResult().catch((e) => toast('로그인하지 못했습니다: ' + (e.message || e.code)));
