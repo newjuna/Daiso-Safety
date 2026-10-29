@@ -87,23 +87,48 @@ function milResults() {
   const hit = liveStores().filter((s) => s.key.includes(q)).sort((a, b) => (a.key.indexOf(q) - b.key.indexOf(q)) || sortKo(a.name, b.name));
   return '<div class="mlist">' + (hit.length ? hit.slice(0, 30).map(storeLine).join('') + (hit.length > 30 ? '<div class="muted" style="padding:9px 4px;font-size:12px">' + (hit.length - 30) + '개 더 있어요 · 더 길게 적어 주세요</div>' : '') : '<div class="muted" style="padding:10px 4px">찾는 매장이 없습니다</div>') + '</div>';
 }
+/* D1.6 조직으로 고르기 = 왼쪽 접었다 펴는 목록 + 오른쪽 바로 아래 단계 (팀원 관리와 같은 두 칸)
+   MORG = 지금 고른 곳 { division, dept, team } · 왼쪽 · 오른쪽 모두 이 값 하나로 그림 */
+let MPATHS = [];
 function milOrg() {
-  const L = liveStores().map((s) => ({ s, o: orgOf(s) }));
-  const uniq = (a) => [...new Set(a)].sort(sortKo);
-  const chip = (lv, v) => '<button type="button" class="chip' + (MORG[lv] === v ? ' on' : '') + '" data-org="' + lv + '" data-v="' + esc(v) + '">' + esc(v) + '</button>';
-  let h = '<div class="chips">' + uniq(L.map((x) => x.o.division)).map((v) => chip('division', v)).join('') + '</div>';
-  if (MORG.division) h += '<div class="chips">' + uniq(L.filter((x) => x.o.division === MORG.division).map((x) => x.o.dept)).map((v) => chip('dept', v)).join('') + '</div>';
-  if (MORG.dept) h += '<div class="chips">' + uniq(L.filter((x) => x.o.division === MORG.division && x.o.dept === MORG.dept).map((x) => x.s.team || '팀 없음')).map((v) => chip('team', v)).join('') + '</div>';
-  if (MORG.team) h += '<div class="mlist">' + L.filter((x) => x.o.division === MORG.division && x.o.dept === MORG.dept && (x.s.team || '팀 없음') === MORG.team).map((x) => x.s).sort((a, b) => sortKo(a.name, b.name)).map(storeLine).join('') + '</div>';
-  return h;
+  const L = liveStores().map((s) => ({ s, o: orgOf(s), t: s.team || '팀 없음' }));
+  const uniq = (a) => [...new Set(a)].sort(sortKo), { division: dv, dept: dp, team: tm } = MORG;
+  const divs = uniq(L.map((x) => x.o.division));
+  const deptsOf = (v) => uniq(L.filter((x) => x.o.division === v).map((x) => x.o.dept));
+  const teamsOf = (v, d) => uniq(L.filter((x) => x.o.division === v && x.o.dept === d).map((x) => x.t));
+  const n = (f) => L.filter(f).length.toLocaleString();
+  MPATHS = []; const P = (p) => { MPATHS.push(p); return MPATHS.length - 1; };
+  /* 왼쪽 */
+  const sd = (cls, icon, label, cnt, on, path) => '<button type="button" class="sd ' + cls + (on ? ' on' : '') + '" data-p="' + P(path) + '">' + ic(icon, 13) + '<span>' + esc(label) + '</span><span class="n">' + cnt + '</span></button>';
+  let side = sd('', 'folder', '전체', n(() => true), !dv, {});
+  divs.forEach((v) => {
+    const op = dv === v; side += sd('', op ? 'down' : 'right', v, n((x) => x.o.division === v), op && !dp, { division: v });
+    if (op) deptsOf(v).forEach((d) => {
+      const od = dp === d; side += sd('d1', od ? 'down' : 'right', d, n((x) => x.o.division === v && x.o.dept === d), od && !tm, { division: v, dept: d });
+      if (od) teamsOf(v, d).forEach((t) => { side += sd('d2', 'folder', t, n((x) => x.o.division === v && x.o.dept === d && x.t === t), tm === t, { division: v, dept: d, team: t }); });
+    });
+  });
+  /* 오른쪽 */
+  const fo = (label, cnt, path) => '<button type="button" class="ml" data-p="' + P(path) + '">' + ic('folder', 17) + '<span>' + esc(label) + '</span><span class="n">' + cnt + '</span>' + ic('right', 16) + '</button>';
+  let crumb = '', title, items;
+  if (!dv) { title = '영업부문'; items = divs.map((v) => fo(v, n((x) => x.o.division === v), { division: v })).join(''); }
+  else if (!dp) { title = dv; items = deptsOf(dv).map((d) => fo(d, n((x) => x.o.division === dv && x.o.dept === d), { division: dv, dept: d })).join(''); }
+  else if (!tm) { crumb = dv + ' ›'; title = dp; items = teamsOf(dv, dp).map((t) => fo(t, n((x) => x.o.division === dv && x.o.dept === dp && x.t === t), { division: dv, dept: dp, team: t })).join(''); }
+  else {
+    crumb = dv + ' › ' + dp + ' ›'; title = tm;
+    const st = L.filter((x) => x.o.division === dv && x.o.dept === dp && x.t === tm).map((x) => x.s).sort((a, b) => sortKo(a.name, b.name));
+    items = st.map((s) => '<button type="button" class="ml" data-pick="' + esc(s.id) + '">' + ic('store', 17) + '<span>' + esc(s.name) + '<small>' + esc(s.type) + '</small></span>' + ic('right', 16) + '</button>').join('');
+    title += ' <span class="cnt">매장 ' + st.length + '곳</span>';
+  }
+  return '<div class="two"><nav class="side" aria-label="조직">' + side + '</nav><section class="omain">'
+    + (crumb ? '<div class="crumb">' + esc(crumb) + '</div>' : '') + '<div class="ttl">' + (tm ? esc(tm) + title.slice(tm.length) : esc(title)) + '</div>'
+    + '<div class="mlist" style="margin-top:6px">' + (items || '<div class="muted" style="padding:10px">매장이 없습니다</div>') + '</div></section></div>';
 }
 function bindPick() { document.querySelectorAll('[data-pick]').forEach((b) => b.onclick = () => { MSEL = b.dataset.pick; MASK = ''; render(); window.scrollTo(0, 0); }); }
 function bindOrg() {
-  document.querySelectorAll('[data-org]').forEach((b) => b.onclick = () => {
-    const lv = b.dataset.org, v = b.dataset.v;
-    if (lv === 'division') MORG = { division: MORG.division === v ? '' : v, dept: '', team: '' };
-    else if (lv === 'dept') MORG = { ...MORG, dept: MORG.dept === v ? '' : v, team: '' };
-    else MORG = { ...MORG, team: MORG.team === v ? '' : v };
+  document.querySelectorAll('[data-p]').forEach((b) => b.onclick = () => {
+    const p = MPATHS[+b.dataset.p] || {};
+    MORG = { division: p.division || '', dept: p.dept || '', team: p.team || '' };
     $('mOrg').innerHTML = milOrg(); bindOrg(); bindPick();
   });
 }
