@@ -39,13 +39,21 @@ const orgOf = (s) => { const t = teamOf(s.team); return { division: t ? t.divisi
 const sortKo = (a, b) => String(a).localeCompare(String(b), 'ko');
 
 /* ---------- 엑셀에서 복사한 글(탭으로 나뉨) 읽기 · 칸 안 줄바꿈(따옴표) 처리 ---------- */
+/* D1.3 엑셀 복사(탭) · CSV(쉼표) · 세미콜론 모두 읽음 · 첫 줄을 보고 구분 글자를 고름 */
+function delimOf(t) {
+  const first = (t.split(/\r?\n/).find((l) => l.trim()) || '');
+  const n = (ch) => first.split(ch).length - 1;
+  const c = [['\t', n('\t')], [',', n(',')], [';', n(';')]].sort((a, b) => b[1] - a[1]);
+  return c[0][1] > 0 ? c[0][0] : '\t';
+}
 function parseTSV(t) {
-  const rows = []; let row = [], cell = '', q = false;
+  t = String(t || '').replace(/^\uFEFF/, '').replace(/[\u200B\uFEFF]/g, '');
+  const D = delimOf(t), rows = []; let row = [], cell = '', q = false;
   for (let i = 0; i < t.length; i++) {
     const c = t[i];
     if (q) { if (c === '"') { if (t[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += c; }
-    else if (c === '"' && cell === '') q = true;
-    else if (c === '\t') { row.push(cell); cell = ''; }
+    else if (c === '"' && cell.trim() === '') { q = true; cell = ''; }
+    else if (c === D) { row.push(cell); cell = ''; }
     else if (c === '\n' || c === '\r') { if (c === '\r' && t[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }
     else cell += c;
   }
