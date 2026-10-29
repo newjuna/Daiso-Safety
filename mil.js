@@ -2,6 +2,7 @@
  * 1단계 (D1.5): 첫 화면 · 점검 시작 (점검자 = 로그인한 사람 · 매장 검색 / 조직으로 고르기)
  * 진행 중인 점검은 이 휴대폰에 저장 (localStorage · 계정별) → 앱을 닫아도 「이어서 하기」
  * 사고이력 · 지난 지적사항 조회는 5단계에서 붙임 (그때 기다릴 일이 생기면 확인 화면을 보여 줌)
+ * D1.7: 점검 화면(작업점검 ~ 해결방안 확인)은 insp.js · 사진 보관은 photo.js
  */
 Object.assign(ICON, {
   alert: '<path d="M12 3l9.5 17h-19z"/><path d="M12 10v4M12 17.5v.5"/>',
@@ -35,8 +36,9 @@ function milView() {
 /* ---------- 첫 화면 ---------- */
 function milHome() {
   const cur = milGet();
+  if (typeof inspReset === 'function') inspReset();
   frame('<div class="hello">' + esc(ME.team) + '<b>' + esc(ME.name) + ' 님</b></div>'
-    + (cur ? '<button class="card resume" type="button" id="mResume"><div class="ic red">' + ic('edit') + '</div><div><h3>이어서 하기</h3><p>' + esc(cur.store.name) + ' · ' + esc(dayKo(cur.date)) + '<br>작업점검 · 2단계에서 옮겨 와요</p></div><span class="go">' + ic('right', 18) + '</span></button>' : '')
+    + (cur ? '<button class="card resume" type="button" id="mResume"><div class="ic red">' + ic('edit') + '</div><div><h3>이어서 하기</h3><p>' + esc(cur.store.name) + ' · ' + esc(dayKo(cur.date)) + '<br>' + esc(typeof inspProgress === 'function' ? inspProgress(cur) : '') + '</p></div><span class="go">' + ic('right', 18) + '</span></button>' : '')
     + '<button class="card" type="button" id="mNew"><div class="ic navy">' + ic('plus') + '</div><div><h3>새 점검 시작</h3><p>매장을 골라 현장점검을 시작해요</p></div></button>'
     + '<div class="card off"><div class="ic gray">' + ic('alert') + '</div><div><h3>사고 이력</h3><p>매장별 사고 · 팀 1장 보고서</p></div><span class="tag">준비 중</span></div>'
     + '<div class="card off"><div class="ic gray">' + ic('chart') + '</div><div><h3>대시보드</h3><p>점검 현황 · 미조치 지적</p></div><span class="tag">준비 중</span></div>'
@@ -135,7 +137,8 @@ function bindOrg() {
 /* 점검 시작: 기다릴 것이 없어 바로 다음 화면으로 (사고이력 조회는 5단계에서) */
 function milBegin() {
   const s = SD.stores.find((x) => x.id === MSEL); if (!s) return;
-  const o = orgOf(s);
+  const o = orgOf(s), old = milGet();
+  if (old && typeof PH !== 'undefined') PH.clear(old.id);   // 지운 점검의 사진도 같이 지움
   const cur = { id: newId('I'), date: MDATE, startedAt: now(), screen: 'work',
     store: { id: s.id, name: s.name, team: s.team, dept: o.dept, division: o.division, type: s.type },
     inspector: { email: ME.email, name: ME.name, title: ME.title || '' } };
@@ -143,15 +146,4 @@ function milBegin() {
   MASK = ''; MV = 'work'; render(); window.scrollTo(0, 0);
 }
 
-/* ---------- 점검 (2단계부터 옮겨 옴) ---------- */
-function milWork() {
-  const cur = milGet(); if (!cur) { MV = 'home'; return render(); }
-  frame('<div class="pick" style="margin-top:0"><h4>' + esc(cur.store.name) + '</h4><p>' + esc([cur.store.division, cur.store.dept, cur.store.team].join(' › ')) + ' · ' + esc(dayKo(cur.date)) + ' · 점검자 ' + esc(cur.inspector.name) + '</p></div>'
-    + '<div class="ready" style="padding:40px 10px 20px"><div class="ring red">' + ic('edit', 28) + '</div><h2>작업점검</h2><p class="muted">2단계에서 v4의 점검 흐름을 옮겨 옵니다.<br>작업점검 · 사다리 · 공통·시설 · 소방 · TBM · 근로자 의견 · 기타</p></div>'
-    + (MASK === 'quit' ? '<div class="ask">이 점검을 지울까요? 이 휴대폰에 저장된 내용이 모두 없어집니다.<div class="fbtn"><button class="b red" type="button" id="mQuit2">지우기</button><button class="b" type="button" id="mNo">취소</button></div></div>'
-      : '<button class="btn ghost wide" type="button" id="mHome2">' + ic('left', 16) + '밀착지원 처음으로</button><button class="btn ghost wide danger" type="button" id="mQuit" style="margin-top:8px">' + ic('trash', 16) + '이 점검 그만두기</button>'));
-  if ($('mHome2')) $('mHome2').onclick = () => { MV = 'home'; render(); };
-  if ($('mQuit')) $('mQuit').onclick = () => { MASK = 'quit'; render(); };
-  if ($('mQuit2')) $('mQuit2').onclick = () => { milPut(null); MASK = ''; MV = 'home'; toast('점검을 지웠습니다'); render(); };
-  if ($('mNo')) $('mNo').onclick = () => { MASK = ''; render(); };
-}
+/* 점검 화면 (milWork) 은 insp.js (D1.7~) */
