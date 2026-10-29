@@ -142,13 +142,16 @@ function storesView() {
   }
   html += '<div class="search"><span>' + ic('search', 17) + '</span><input id="f_sq" type="search" placeholder="매장명 검색 (공백 무시)" value="' + esc(SQ) + '" autocomplete="off"></div>'
     + '<div class="stat"><div>매장<b>' + live.length.toLocaleString() + '</b></div><div>부서<b>' + depts.size + '</b></div><div>팀<b>' + teams.size + '</b></div></div>'
-    + '<div class="row2"><button class="btn red" type="button" data-s="upload">' + ic('upload', 17) + '매장 올리기</button><button class="btn ghost" type="button" data-s="teams">' + ic('link', 17) + '팀 연결표</button></div>'
+    + '<button class="btn red wide" type="button" id="sAdd">' + ic('plus', 18) + '매장 하나 추가</button>'
+    + '<div class="row2" style="margin-top:8px"><button class="btn ghost" type="button" data-s="upload">' + ic('upload', 17) + '매장 올리기</button><button class="btn ghost" type="button" data-s="teams">' + ic('link', 17) + '팀 연결표</button></div>'
     + (SD.meta ? '<p class="muted" style="margin:8px 2px 0;font-size:12px">마지막으로 올린 날 ' + esc(String(SD.meta.at).slice(0, 10)) + ' · ' + esc(String(SD.meta.by).split('@')[0]) + (closed ? ' · 폐점 ' + closed + '개' : '') + '</p>' : '')
     + '<div id="sList">' + storeList() + '</div>';
   frame(html); bindStores();
   const q = $('f_sq'); if (q) q.oninput = () => { SQ = q.value; $('sList').innerHTML = storeList(); bindList(); };
+  $('sAdd').onclick = () => { SEDIT = '_new'; ASK = ''; SQ = ''; if (q) q.value = ''; $('sList').innerHTML = storeList(); bindList(); setTimeout(() => { const f = $('f_sName'); if (f) { f.focus(); f.scrollIntoView({ block: 'center' }); } }, 30); };
 }
 function storeList() {
+  if (SEDIT === '_new') return '<div class="tr" style="padding:2px 0">' + storeForm({ id: '_new' }) + '</div>';
   const q = nk(SQ);
   if (q) {
     const hit = SD.stores.filter((s) => s.key.includes(q)).sort((a, b) => sortKo(a.name, b.name)).slice(0, 60);
@@ -180,14 +183,21 @@ function storeRow(s) {
   const o = orgOf(s);
   return '<button type="button" class="st" data-edit="' + esc(s.id) + '">' + ic('store', 16) + '<span class="sn">' + esc(s.name) + (SQ ? '<small>' + esc(o.dept + ' · ' + (s.team || '팀 없음')) + '</small>' : '') + '</span><span class="n">' + (s.closed ? '<span class="pill">폐점</span>' : esc(s.type)) + '</span></button>';
 }
+/* D1.5 매장 하나 추가(id='_new') · 고치기 · 폐점 · 삭제 */
+const autoTxt = (t) => { const o = teamOf(t); return t ? (o ? '부서 · 영업부문은 팀 연결표에서 자동 <b>' + esc(o.dept) + ' · ' + esc(o.division) + '</b>' : '<span class="bad">팀 연결표에 없는 팀입니다 · 「미분류」로 보입니다</span>') : '팀을 고르면 부서 · 영업부문이 자동으로 들어가요'; };
 function storeForm(s) {
-  const teams = Object.values(SD.teams).map((t) => t.team).sort(sortKo); if (s.team && !teams.includes(s.team)) teams.unshift(s.team);
-  return '<div class="form" style="margin:6px 8px"><b>' + esc(s.name) + '</b><div class="grid">'
-    + fld('sName', '매장명 *', s.name, 'text', '', ' full')
-    + '<div class="fd"><label for="f_sTeam">팀</label><select id="f_sTeam">' + teams.map((t) => '<option' + (t === s.team ? ' selected' : '') + '>' + esc(t) + '</option>').join('') + '</select></div>'
-    + '<div class="fd"><label for="f_sType">형태</label><select id="f_sType">' + INCLUDE_TYPES.map((t) => '<option' + (t === s.type ? ' selected' : '') + '>' + t + '</option>').join('') + '</select></div></div>'
-    + '<label class="chk"><input type="checkbox" id="f_sClosed"' + (s.closed ? ' checked' : '') + '><span class="box">' + ic('check', 12) + '</span>폐점 (목록에서 빼기 · 지난 기록은 남음)</label>'
-    + '<div class="fbtn"><button class="b red grow" type="button" data-ssave="' + esc(s.id) + '"' + (BUSY ? ' disabled' : '') + '>' + (BUSY ? '저장 중…' : '저장') + '</button><button class="b" type="button" data-scancel="1">취소</button></div></div>';
+  const isNew = s.id === '_new', xt = EXCLUDE_TEAMS.map(nk);
+  const teams = Object.values(SD.teams).map((t) => t.team).filter((t) => !xt.includes(nk(t))).sort(sortKo); if (s.team && !teams.includes(s.team)) teams.unshift(s.team);
+  return '<div class="form" style="margin:6px 8px"><b>' + (isNew ? '매장 하나 추가' : esc(s.name)) + '</b><div class="grid">'
+    + fld('sName', '매장명 *', s.name || '', 'text', isNew ? '예: 신림2호점' : '', ' full')
+    + '<div class="fd"><label for="f_sTeam">팀 *</label><select id="f_sTeam">' + (isNew ? '<option value="">골라 주세요</option>' : '') + teams.map((t) => '<option' + (t === s.team ? ' selected' : '') + '>' + esc(t) + '</option>').join('') + '<option value="__new">새 팀…</option></select></div>'
+    + '<div class="fd"><label for="f_sType">형태 *</label><select id="f_sType">' + INCLUDE_TYPES.map((t) => '<option' + (t === (s.type || '직영점') ? ' selected' : '') + '>' + t + '</option>').join('') + '</select></div></div>'
+    + '<div id="sNewTeam" class="grid" style="display:none">' + fld('sNT', '새 팀 이름 *', '', 'text', '예: 창원2팀', ' full') + fld('sND', '부서 *', '', 'text', '예: 경남부') + fld('sNV', '영업부문 *', '', 'text', '예: 영업3본부') + '</div>'
+    + '<div class="auto" id="sAuto">' + autoTxt(s.team) + '</div>'
+    + (isNew ? '' : '<label class="chk"><input type="checkbox" id="f_sClosed"' + (s.closed ? ' checked' : '') + '><span class="box">' + ic('check', 12) + '</span>폐점 (목록에서 빼기 · 지난 점검 기록은 남음)</label>')
+    + (ASK === 'store:' + s.id ? '<div class="ask"><b>' + esc(s.name) + '</b>을(를) 완전히 지울까요? 잘못 넣은 매장일 때만 쓰세요.<br>문 닫은 매장은 지우지 말고 「폐점」을 체크해 주세요.<div class="fbtn"><button class="b red" type="button" data-sdel="' + esc(s.id) + '">삭제</button><button class="b" type="button" data-sno="1">취소</button></div></div>'
+      : '<div class="fbtn"><button class="b red grow" type="button" data-ssave="' + esc(s.id) + '"' + (BUSY ? ' disabled' : '') + '>' + (BUSY ? '저장 중…' : isNew ? '추가' : '저장') + '</button><button class="b" type="button" data-scancel="1">취소</button>'
+        + (isNew ? '' : '<button class="b danger" type="button" data-sask="' + esc(s.id) + '">삭제</button>') + '</div>') + '</div>';
 }
 function bindStores() {
   document.querySelectorAll('[data-s]').forEach((b) => b.onclick = () => { const v = b.dataset.s; if (v === 'home') go('home'); else { SM = v; PV = null; TPV = null; TEDIT = ''; render(); window.scrollTo(0, 0); } });
@@ -198,14 +208,40 @@ function bindList() {
   document.querySelectorAll('[data-edit]').forEach((b) => b.onclick = () => { SEDIT = b.dataset.edit; $('sList').innerHTML = storeList(); bindList(); });
   document.querySelectorAll('[data-scancel]').forEach((b) => b.onclick = () => { SEDIT = ''; $('sList').innerHTML = storeList(); bindList(); });
   document.querySelectorAll('[data-ssave]').forEach((b) => b.onclick = () => storeSave(b.dataset.ssave));
+  const re = () => { $('sList').innerHTML = storeList(); bindList(); };
+  document.querySelectorAll('[data-sask]').forEach((b) => b.onclick = () => { ASK = 'store:' + b.dataset.sask; re(); });
+  document.querySelectorAll('[data-sno]').forEach((b) => b.onclick = () => { ASK = ''; re(); });
+  document.querySelectorAll('[data-sdel]').forEach((b) => b.onclick = () => storeDel(b.dataset.sdel));
+  const t = $('f_sTeam'); if (t) t.onchange = () => { const nw = t.value === '__new'; $('sNewTeam').style.display = nw ? 'grid' : 'none'; $('sAuto').innerHTML = nw ? '새 팀은 팀 연결표에도 같이 저장돼요' : autoTxt(t.value); if (nw) setTimeout(() => $('f_sNT').focus(), 20); };
 }
 async function storeSave(id) {
-  const s = SD.stores.find((x) => x.id === id), name = val('sName');
+  const isNew = id === '_new', s = isNew ? null : SD.stores.find((x) => x.id === id), name = val('sName');
   if (!name) return shake(['f_sName'], '매장명을 적어 주세요');
-  if (SD.stores.some((x) => x.id !== id && x.key === nk(name))) return shake(['f_sName'], '같은 이름의 매장이 이미 있습니다');
-  const d = { id, name, key: nk(name), team: $('f_sTeam').value, type: $('f_sType').value, closed: $('f_sClosed').checked, updatedBy: ME.email, updatedAt: now() };
-  try { await db.collection('STORES').doc(id).set(d); Object.assign(s, d); SEDIT = ''; toast('저장했습니다'); render(); }
-  catch (e) { toast('저장하지 못했습니다: ' + (e.message || e.code)); }
+  if (SD.stores.some((x) => x.id !== id && x.key === nk(name))) return shake(['f_sName'], '같은 이름의 매장이 이미 있습니다' + (SD.stores.find((x) => x.key === nk(name)).closed ? ' (폐점 목록에 있음)' : ''));
+  let team = $('f_sTeam').value; const by = ME.email, at = now(), b = db.batch();
+  if (!team) return shake(['f_sTeam'], '팀을 골라 주세요');
+  let nt = null;
+  if (team === '__new') {
+    team = val('sNT'); const dept = val('sND'), division = val('sNV'), miss = [];
+    if (!team) miss.push('f_sNT'); if (!dept) miss.push('f_sND'); if (!division) miss.push('f_sNV');
+    if (miss.length) return shake(miss, '새 팀 이름 · 부서 · 영업부문을 적어 주세요');
+    if (!SD.teams[teamId(team)]) { nt = { team, dept, division, updatedBy: by, updatedAt: at }; b.set(db.collection('TEAMMAP').doc(teamId(team)), nt); }
+  }
+  const nid = isNew ? newId('S') : id;
+  const d = { id: nid, name, key: nk(name), team, type: $('f_sType').value, closed: isNew ? false : $('f_sClosed').checked, updatedBy: by, updatedAt: at };
+  b.set(db.collection('STORES').doc(nid), d);
+  BUSY = true; render();
+  try {
+    await b.commit(); BUSY = false;
+    if (nt) SD.teams[teamId(team)] = nt;
+    if (isNew) SD.stores.push(d); else Object.assign(s, d);
+    SEDIT = ''; ASK = ''; toast(isNew ? name + ' 매장을 추가했습니다' : '저장했습니다'); render();
+  } catch (e) { BUSY = false; render(); toast('저장하지 못했습니다: ' + (e.message || e.code)); }
+}
+async function storeDel(id) {
+  const s = SD.stores.find((x) => x.id === id); if (!s) return;
+  try { await db.collection('STORES').doc(id).delete(); SD.stores = SD.stores.filter((x) => x.id !== id); SEDIT = ''; ASK = ''; toast(s.name + ' 매장을 지웠습니다'); render(); }
+  catch (e) { toast('지우지 못했습니다: ' + (e.message || e.code)); }
 }
 
 /* ---------- 매장 올리기 화면 ---------- */

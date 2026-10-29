@@ -1,6 +1,6 @@
 /* 다이소 안전 · 첫 화면 (로그인 → 팀원 확인 → 업무 고르기) · 팀원 관리 = 조직도 방식 */
 // ★ 화면 버전: 바꿀 때마다 index.html 의 ?v= 와 같이 올림
-const UI_VERSION = '26.10.29 D1.4';
+const UI_VERSION = '26.10.29 D1.5';
 // 고정 마스터 (firestore.rules 와 같은 값 · 화면에서 못 끔)
 const MASTER_EMAILS = ['zxcv6309@gmail.com'];
 
@@ -67,8 +67,10 @@ async function checkMember(u) {
   let lg = null, mem = null;
   try { const d = await db.collection('LOGINS').doc(email).get(); if (d.exists) lg = d.data(); } catch (e) { /* 명단에 없으면 규칙이 막음 */ }
   if (lg && lg.memberId) { try { const d = await db.collection('MEMBERS').doc(lg.memberId).get(); if (d.exists) mem = d.data(); } catch (e) {} }
+  let unit = null; if (mem && mem.unitId) { try { const d = await db.collection('UNITS').doc(mem.unitId).get(); if (d.exists) unit = d.data(); } catch (e) {} }
   ME = { email, master: fixed || !!(lg && lg.master), member: fixed || !!lg, memberId: lg ? lg.memberId : '',
-    name: (mem && mem.name) || (lg && lg.name) || u.displayName || email.split('@')[0], team: (mem && mem.title) || '안전보건팀' };
+    name: (mem && mem.name) || (lg && lg.name) || u.displayName || email.split('@')[0], title: (mem && mem.title) || '',
+    team: (unit && unit.name) || '안전보건팀' };
 }
 function noAccessView() {
   $('app').innerHTML = '<div class="page"><div class="bar"><span class="dot"></span>다이소 안전</div><div class="warn"><div class="ring">' + ic('lock', 30) + '</div><h2>사용 권한이 없습니다</h2>'
@@ -95,7 +97,7 @@ function frame(inner, wide) {
     $('pwa').onclick = () => { MENU = false; render(); toast('홈 화면 앱은 다음 차례에 연결합니다'); };
   }
 }
-function go(v) { VIEW = v; MENU = false; FORM = null; ASK = ''; if (v === 'stores' && typeof SM !== 'undefined') { SM = 'list'; PV = null; TPV = null; SEDIT = ''; TEDIT = ''; } render(); window.scrollTo(0, 0); }
+function go(v) { VIEW = v; MENU = false; FORM = null; ASK = ''; if (v === 'store' && typeof milReset === 'function') milReset(); if (v === 'stores' && typeof SM !== 'undefined') { SM = 'list'; PV = null; TPV = null; SEDIT = ''; TEDIT = ''; } render(); window.scrollTo(0, 0); }
 
 /* ---------- 업무 고르기 ---------- */
 function homeView() {
@@ -264,7 +266,7 @@ async function memDel(id) {
 function render() {
   if (!ME) return loginView();
   if (!ME.member) return noAccessView();
-  if (VIEW === 'store') return storeView();
+  if (VIEW === 'store') return typeof milView === 'function' ? milView() : storeView();
   if (VIEW === 'members') return membersView();
   if (VIEW === 'stores') return storesView();
   return homeView();

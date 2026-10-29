@@ -1,0 +1,132 @@
+/* 다이소 안전 · 매장 밀착지원
+ * 1단계 (D1.5): 첫 화면 · 점검 시작 (점검자 = 로그인한 사람 · 매장 검색 / 조직으로 고르기)
+ * 진행 중인 점검은 이 휴대폰에 저장 (localStorage · 계정별) → 앱을 닫아도 「이어서 하기」
+ * 사고이력 · 지난 지적사항 조회는 5단계에서 붙임 (그때 기다릴 일이 생기면 확인 화면을 보여 줌)
+ */
+Object.assign(ICON, {
+  alert: '<path d="M12 3l9.5 17h-19z"/><path d="M12 10v4M12 17.5v.5"/>',
+  chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  cal: '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+  trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>'
+});
+
+let MV = 'home';          // home | start | work
+let MSEL = '';            // 고른 매장 id
+let MQ = '';              // 매장 검색어
+let MORG = { division: '', dept: '', team: '' };
+let MDATE = '';
+let MASK = '';            // 확인 중: 'restart' | 'quit'
+
+const todayStr = () => new Date().toLocaleDateString('sv-SE');
+const milKey = () => 'ds_mil_v1:' + (ME ? ME.email : '');
+function milGet() { try { return JSON.parse(localStorage.getItem(milKey()) || 'null'); } catch (e) { return null; } }
+function milPut(x) { try { if (x) localStorage.setItem(milKey(), JSON.stringify(x)); else localStorage.removeItem(milKey()); return true; } catch (e) { toast('이 휴대폰에 저장하지 못했습니다 (저장 공간 부족)'); return false; } }
+function milReset() { MV = 'home'; MSEL = ''; MQ = ''; MASK = ''; MORG = { division: '', dept: '', team: '' }; MDATE = todayStr(); }
+const dayKo = (d) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || ''); if (!m) return d || ''; return m[1] + '. ' + Number(m[2]) + '. ' + Number(m[3]) + '. (' + '일월화수목금토'[new Date(m[1] + '-' + m[2] + '-' + m[3] + 'T00:00:00').getDay()] + ')'; };
+
+function milView() {
+  if (!MDATE) MDATE = todayStr();
+  TITLE.store = MV === 'start' ? '점검 시작' : '매장 밀착지원';
+  if (MV === 'start') return milStart();
+  if (MV === 'work') return milWork();
+  return milHome();
+}
+
+/* ---------- 첫 화면 ---------- */
+function milHome() {
+  const cur = milGet();
+  frame('<div class="hello">' + esc(ME.team) + '<b>' + esc(ME.name) + ' 님</b></div>'
+    + (cur ? '<button class="card resume" type="button" id="mResume"><div class="ic red">' + ic('edit') + '</div><div><h3>이어서 하기</h3><p>' + esc(cur.store.name) + ' · ' + esc(dayKo(cur.date)) + '<br>작업점검 · 2단계에서 옮겨 와요</p></div><span class="go">' + ic('right', 18) + '</span></button>' : '')
+    + '<button class="card" type="button" id="mNew"><div class="ic navy">' + ic('plus') + '</div><div><h3>새 점검 시작</h3><p>매장을 골라 현장점검을 시작해요</p></div></button>'
+    + '<div class="card off"><div class="ic gray">' + ic('alert') + '</div><div><h3>사고 이력</h3><p>매장별 사고 · 팀 1장 보고서</p></div><span class="tag">준비 중</span></div>'
+    + '<div class="card off"><div class="ic gray">' + ic('chart') + '</div><div><h3>대시보드</h3><p>점검 현황 · 미조치 지적</p></div><span class="tag">준비 중</span></div>'
+    + '<button class="btn ghost" type="button" id="mHome" style="margin-top:18px">' + ic('left', 16) + '업무 고르기</button>');
+  if (cur) $('mResume').onclick = () => { MV = 'work'; render(); window.scrollTo(0, 0); };
+  $('mNew').onclick = () => { MV = 'start'; MSEL = ''; MQ = ''; MASK = ''; MDATE = todayStr(); render(); window.scrollTo(0, 0); };
+  $('mHome').onclick = () => go('home');
+}
+
+/* ---------- 점검 시작 ---------- */
+const liveStores = () => SD.stores.filter((s) => !s.closed);
+function milStart() {
+  if (!SD) { frame('<p class="muted">매장 목록 불러오는 중…</p>'); storesLoad(); return; }
+  const me = '<div class="me"><div class="av">' + esc(String(ME.name).slice(0, 1)) + '</div><div><b>' + esc(ME.name) + '</b>' + (ME.title ? ' <span class="muted" style="font-size:12.5px">' + esc(ME.title) + '</span>' : '') + '<small>점검자 · 로그인 계정으로 자동</small></div>'
+    + '<label class="mdate">' + ic('cal', 15) + '<span>' + esc(dayKo(MDATE)) + '</span><input type="date" id="f_mDate" value="' + esc(MDATE) + '" aria-label="점검일"></label></div>';
+  let h = '<button class="back" type="button" id="mBack">' + ic('left', 16) + '이전으로</button>' + me;
+  const s = MSEL && SD.stores.find((x) => x.id === MSEL);
+  if (!liveStores().length) {
+    h += '<div class="note warn" style="margin-top:14px">아직 매장 목록이 없습니다. ' + (ME.master ? '메뉴 → 매장 관리에서 매장을 올려 주세요.' : '마스터에게 매장 목록을 올려 달라고 요청해 주세요.') + '</div>';
+  } else if (s) {
+    const o = orgOf(s), cur = milGet();
+    h += '<div class="pick"><h4>' + esc(s.name) + '</h4><p>' + esc([o.division, o.dept, s.team || '팀 없음'].join(' › ')) + ' · ' + esc(s.type) + '</p><div class="facts"><span>지난 점검 · 5단계에서 연결</span><span>사고이력 · 5단계에서 연결</span></div></div>'
+      + '<button class="btn ghost wide" type="button" id="mOther" style="font-weight:500">다른 매장 고르기</button>'
+      + (MASK === 'restart' && cur ? '<div class="ask">진행 중인 점검 <b>' + esc(cur.store.name) + '</b> (' + esc(dayKo(cur.date)) + ')이 지워집니다. 새로 시작할까요?<div class="fbtn"><button class="b red" type="button" id="mGo2">새로 시작</button><button class="b" type="button" id="mNo">취소</button></div></div>'
+        : '<button class="btn red wide" type="button" id="mGo" style="margin-top:14px">점검 시작' + ic('right', 17) + '</button>')
+      + '<p class="muted" style="font-size:12px;margin:12px 2px 0">점검 내용은 이 휴대폰에 바로바로 저장돼요. 앱을 닫아도 「이어서 하기」로 돌아옵니다.</p>';
+  } else {
+    h += '<div class="lb">매장 찾기</div><div class="search"><span>' + ic('search', 17) + '</span><input id="f_mq" type="search" placeholder="매장명 (두 글자 이상 · 공백 무시)" value="' + esc(MQ) + '" autocomplete="off"></div>'
+      + '<div id="mRes">' + milResults() + '</div>'
+      + '<div class="lb">또는 조직으로 고르기</div><div id="mOrg">' + milOrg() + '</div>';
+  }
+  frame(h);
+  $('mBack').onclick = () => { if (MSEL) { MSEL = ''; MASK = ''; render(); } else { MV = 'home'; render(); } window.scrollTo(0, 0); };
+  const dt = $('f_mDate'); if (dt) dt.onchange = () => { if (dt.value) MDATE = dt.value; render(); };
+  const q = $('f_mq'); if (q) { q.oninput = () => { MQ = q.value; $('mRes').innerHTML = milResults(); bindPick(); }; if (!MQ) setTimeout(() => q.focus(), 30); }
+  if ($('mOther')) $('mOther').onclick = () => { MSEL = ''; MASK = ''; render(); };
+  if ($('mGo')) $('mGo').onclick = () => { if (milGet()) { MASK = 'restart'; render(); } else milBegin(); };
+  if ($('mGo2')) $('mGo2').onclick = milBegin;
+  if ($('mNo')) $('mNo').onclick = () => { MASK = ''; render(); };
+  bindPick(); bindOrg();
+}
+function storeLine(s) {
+  const o = orgOf(s);
+  return '<button type="button" class="ml" data-pick="' + esc(s.id) + '">' + ic('store', 17) + '<span>' + esc(s.name) + '<small>' + esc(o.dept + ' · ' + (s.team || '팀 없음') + ' · ' + s.type) + '</small></span>' + ic('right', 16) + '</button>';
+}
+function milResults() {
+  const q = nk(MQ); if (q.length < 2) return '';
+  const hit = liveStores().filter((s) => s.key.includes(q)).sort((a, b) => (a.key.indexOf(q) - b.key.indexOf(q)) || sortKo(a.name, b.name));
+  return '<div class="mlist">' + (hit.length ? hit.slice(0, 30).map(storeLine).join('') + (hit.length > 30 ? '<div class="muted" style="padding:9px 4px;font-size:12px">' + (hit.length - 30) + '개 더 있어요 · 더 길게 적어 주세요</div>' : '') : '<div class="muted" style="padding:10px 4px">찾는 매장이 없습니다</div>') + '</div>';
+}
+function milOrg() {
+  const L = liveStores().map((s) => ({ s, o: orgOf(s) }));
+  const uniq = (a) => [...new Set(a)].sort(sortKo);
+  const chip = (lv, v) => '<button type="button" class="chip' + (MORG[lv] === v ? ' on' : '') + '" data-org="' + lv + '" data-v="' + esc(v) + '">' + esc(v) + '</button>';
+  let h = '<div class="chips">' + uniq(L.map((x) => x.o.division)).map((v) => chip('division', v)).join('') + '</div>';
+  if (MORG.division) h += '<div class="chips">' + uniq(L.filter((x) => x.o.division === MORG.division).map((x) => x.o.dept)).map((v) => chip('dept', v)).join('') + '</div>';
+  if (MORG.dept) h += '<div class="chips">' + uniq(L.filter((x) => x.o.division === MORG.division && x.o.dept === MORG.dept).map((x) => x.s.team || '팀 없음')).map((v) => chip('team', v)).join('') + '</div>';
+  if (MORG.team) h += '<div class="mlist">' + L.filter((x) => x.o.division === MORG.division && x.o.dept === MORG.dept && (x.s.team || '팀 없음') === MORG.team).map((x) => x.s).sort((a, b) => sortKo(a.name, b.name)).map(storeLine).join('') + '</div>';
+  return h;
+}
+function bindPick() { document.querySelectorAll('[data-pick]').forEach((b) => b.onclick = () => { MSEL = b.dataset.pick; MASK = ''; render(); window.scrollTo(0, 0); }); }
+function bindOrg() {
+  document.querySelectorAll('[data-org]').forEach((b) => b.onclick = () => {
+    const lv = b.dataset.org, v = b.dataset.v;
+    if (lv === 'division') MORG = { division: MORG.division === v ? '' : v, dept: '', team: '' };
+    else if (lv === 'dept') MORG = { ...MORG, dept: MORG.dept === v ? '' : v, team: '' };
+    else MORG = { ...MORG, team: MORG.team === v ? '' : v };
+    $('mOrg').innerHTML = milOrg(); bindOrg(); bindPick();
+  });
+}
+/* 점검 시작: 기다릴 것이 없어 바로 다음 화면으로 (사고이력 조회는 5단계에서) */
+function milBegin() {
+  const s = SD.stores.find((x) => x.id === MSEL); if (!s) return;
+  const o = orgOf(s);
+  const cur = { id: newId('I'), date: MDATE, startedAt: now(), screen: 'work',
+    store: { id: s.id, name: s.name, team: s.team, dept: o.dept, division: o.division, type: s.type },
+    inspector: { email: ME.email, name: ME.name, title: ME.title || '' } };
+  if (!milPut(cur)) return;
+  MASK = ''; MV = 'work'; render(); window.scrollTo(0, 0);
+}
+
+/* ---------- 점검 (2단계부터 옮겨 옴) ---------- */
+function milWork() {
+  const cur = milGet(); if (!cur) { MV = 'home'; return render(); }
+  frame('<div class="pick" style="margin-top:0"><h4>' + esc(cur.store.name) + '</h4><p>' + esc([cur.store.division, cur.store.dept, cur.store.team].join(' › ')) + ' · ' + esc(dayKo(cur.date)) + ' · 점검자 ' + esc(cur.inspector.name) + '</p></div>'
+    + '<div class="ready" style="padding:40px 10px 20px"><div class="ring red">' + ic('edit', 28) + '</div><h2>작업점검</h2><p class="muted">2단계에서 v4의 점검 흐름을 옮겨 옵니다.<br>작업점검 · 사다리 · 공통·시설 · 소방 · TBM · 근로자 의견 · 기타</p></div>'
+    + (MASK === 'quit' ? '<div class="ask">이 점검을 지울까요? 이 휴대폰에 저장된 내용이 모두 없어집니다.<div class="fbtn"><button class="b red" type="button" id="mQuit2">지우기</button><button class="b" type="button" id="mNo">취소</button></div></div>'
+      : '<button class="btn ghost wide" type="button" id="mHome2">' + ic('left', 16) + '밀착지원 처음으로</button><button class="btn ghost wide danger" type="button" id="mQuit" style="margin-top:8px">' + ic('trash', 16) + '이 점검 그만두기</button>'));
+  if ($('mHome2')) $('mHome2').onclick = () => { MV = 'home'; render(); };
+  if ($('mQuit')) $('mQuit').onclick = () => { MASK = 'quit'; render(); };
+  if ($('mQuit2')) $('mQuit2').onclick = () => { milPut(null); MASK = ''; MV = 'home'; toast('점검을 지웠습니다'); render(); };
+  if ($('mNo')) $('mNo').onclick = () => { MASK = ''; render(); };
+}
