@@ -343,3 +343,6 @@ a.btn{text-decoration:none}
 .acb .seg{flex:none}
 .req{color:var(--accent)}
 a.pht{display:block}
+/* D2.1 인터넷 끊김 띠 · 홈 화면 앱(아이폰 위쪽 여백) */
+.netbar{position:fixed;left:50%;top:calc(54px + env(safe-area-inset-top));transform:translateX(-50%);width:100%;max-width:560px;z-index:35;background:#374151;color:#fff;font-size:12.5px;text-align:center;padding:6px 10px}
+@media (display-mode: standalone){.bar{padding-top:env(safe-area-inset-top);height:calc(54px + env(safe-area-inset-top))}.isb{top:calc(54px + env(safe-area-inset-top))}.menu,.shade{top:calc(54px + env(safe-area-inset-top))}}

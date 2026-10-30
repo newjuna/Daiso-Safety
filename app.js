@@ -1,11 +1,13 @@
 /* 다이소 안전 · 첫 화면 (로그인 → 팀원 확인 → 업무 고르기) · 팀원 관리 = 조직도 방식 */
 // ★ 화면 버전: 바꿀 때마다 index.html 의 ?v= 와 같이 올림
-const UI_VERSION = '26.10.29 D2.0';
+const UI_VERSION = '26.10.29 D2.1';
 // 고정 마스터 (firestore.rules 와 같은 값 · 화면에서 못 끔)
 const MASTER_EMAILS = ['zxcv6309@gmail.com'];
 
 firebase.initializeApp(window.FIREBASE_CONFIG);
 const auth = firebase.auth(), db = firebase.firestore();
+// D2.1 한 번 읽은 팀원 · 매장 목록을 휴대폰에 보관 → 인터넷이 약해도 앱이 열림 (안 되는 브라우저면 그냥 넘어감)
+try { db.enablePersistence({ synchronizeTabs: true }).catch(() => {}); } catch (e) { /* 무시 */ }
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const low = (s) => String(s || '').trim().toLowerCase();
@@ -87,14 +89,14 @@ function frame(inner, wide) {
     + '<div class="body">' + inner + '</div>'
     + (MENU ? '<div class="shade" id="shade"></div><div class="menu">' + m('home', 'home', '업무 고르기') + m('store', 'store', '매장 밀착지원')
       + (ME.master ? m('members', 'users', '팀원 관리', '마스터') + m('stores', 'list', '매장 관리', '마스터') : '')
-      + '<button type="button" id="pwa">' + ic('install') + '홈 화면에 앱 추가</button><button type="button" id="out">' + ic('logout') + '로그아웃</button><div class="ver">버전 ' + UI_VERSION + '</div></div>' : '')
+      + '<button type="button" id="pwa">' + ic('install') + (typeof pwaIsApp === 'function' && pwaIsApp() ? '앱으로 쓰는 중<small>설치됨</small>' : '홈 화면에 앱 추가') + '</button><button type="button" id="out">' + ic('logout') + '로그아웃</button><div class="ver">버전 ' + UI_VERSION + '</div></div>' : '')
     + '</div>';
   $('mbtn').onclick = () => { MENU = !MENU; render(); };
   if (MENU) {
     $('shade').onclick = () => { MENU = false; render(); };
     document.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => go(b.dataset.go));
     $('out').onclick = logout;
-    $('pwa').onclick = () => { MENU = false; render(); toast('홈 화면 앱은 다음 차례에 연결합니다'); };
+    $('pwa').onclick = () => { MENU = false; render(); if (typeof pwaInstall === 'function') pwaInstall(); };
   }
 }
 function go(v) { VIEW = v; MENU = false; FORM = null; ASK = ''; if (v === 'store' && typeof milReset === 'function') milReset(); if (v === 'stores' && typeof SM !== 'undefined') { SM = 'list'; PV = null; TPV = null; SEDIT = ''; TEDIT = ''; } render(); window.scrollTo(0, 0); }
