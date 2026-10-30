@@ -196,12 +196,12 @@ function milDone() {
   frame('<div class="dn"><div class="ring">' + ic('check', 30) + '</div><h2>' + esc(L.store) + ' 점검 완료</h2><p class="muted">' + esc(dayKo(L.date)) + ' · ' + esc(L.inspector) + '</p></div>'
     + '<div class="dsum"><div>종합 점수<b>' + L.sc.score + '</b><small>' + L.sc.grade + '등급</small></div><div class="r">지적사항<b>' + L.issues + '</b><small>건</small></div><div>사진<b>' + L.photos + '</b><small>장</small></div></div>'
     + '<div class="dl">' + rows + '</div>'
-    /* D2.2 보고서는 드라이브 대신 인터넷 창(view.html)으로 · 드라이브 폴더는 PC용으로 아래에 작게 */
+    /* D2.3 보고서는 인터넷 창(view.html)으로만 · 드라이브 링크는 화면에 안 보임 (드라이브는 마스터가 드라이브 앱으로 직접) */
     + (L.viewUrl ? '<a class="btn red wide" href="' + esc(L.viewUrl) + '" target="_blank" rel="noopener">' + ic('book', 16) + '결과보고서 보기</a>'
-      : L.pdfUrl ? '<a class="btn red wide" href="' + esc(L.pdfUrl) + '" target="_blank" rel="noopener">' + ic('book', 16) + '결과보고서 PDF 열기 (드라이브)</a>' : '<div class="inote">이번 제출은 보고서 PDF 없이 저장됐어요.</div>')
+      : L.pdfUrl ? '<div class="inote">결과보고서는 저장됐는데 보기 링크를 못 만들었어요. 중계(Apps Script)가 R1.3 이상인지 확인해 주세요.</div>' : '<div class="inote">이번 제출은 보고서 PDF 없이 저장됐어요.</div>')
     + (L.teams ? '<div class="inote">' + (L.teams.indexOf('ok:') === 0 ? ic('check', 15) + ' 내 Teams' + (L.teams.length > 3 ? '(' + esc(L.teams.slice(3)) + ')' : '') + '로 결과보고서 알림을 보냈어요. Teams 왼쪽 [채팅]의 「Workflows」에서 볼 수 있어요.' : 'Teams 알림을 못 보냈어요 · ' + esc(L.teams.slice(4)) + ' (점검 제출은 끝났어요)') + '</div>' : '')
-    + (L.folderUrl ? '<a class="btn ghost wide" href="' + esc(L.folderUrl) + '" target="_blank" rel="noopener">' + ic('folder', 16) + '드라이브 폴더 열기 (PC)</a>' : '')
-    + '<div class="inote">점검 기록은 Firebase에, 사진과 보고서는 드라이브 「다이소 안전 › 매장 밀착지원」에 저장됐어요. 보고서에는 점수 숫자 대신 상태(우수 · 양호 · 관리필요 · 위험)로 나와요.</div>'
+
+    + '<div class="inote">보고서에는 점수 숫자 대신 상태(우수 · 양호 · 관리필요 · 위험)로 나와요.</div>'
     + '<button class="btn ghost wide" type="button" id="dHome">' + ic('home', 16) + '밀착지원 처음으로</button>');
   $('dHome').onclick = () => { LAST = null; MV = 'home'; render(); window.scrollTo(0, 0); };
 }
