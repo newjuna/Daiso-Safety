@@ -90,6 +90,7 @@ function buildRecord(sc) {
     inspectorEmail: IC.inspector.email, inspectorName: IC.inspector.name, inspectorTitle: IC.inspector.title || '',
     folderId: (IC.folder && IC.folder.id) || '', folderUrl: (IC.folder && IC.folder.url) || '',
     pdfId: (IC.pdf && IC.pdf.fileId) || '', pdfUrl: (IC.pdf && IC.pdf.url) || '', pdfPages: (IC.pdf && IC.pdf.pages) || 0,
+    pdfView: IC.pdf && IC.pdf.viewKey ? new URL('view.html?k=' + IC.pdf.viewKey, location.href).href : '',   // D2.2 드라이브 없이 인터넷 창에서 보기
     score: sc.score, grade: sc.grade, parts: sc.parts, weights: sc.weights,
     labor: labor(), stretchGap: gap(),
     counts: { issues: items.length, photos, workRisk: items.filter((x) => x.group === '작업점검').length, ladder: IC.ladder.issues.length, common: IC.common.issues.length, fire: IC.fire.issues.length, tbm: IC.tbm.issues.length, workers: IC.workers.length, others: IC.others.length,
@@ -135,14 +136,24 @@ async function submitRun() {
       } catch (e) { SUB.pdfFail = true; throw new Error('보고서 PDF를 만들지 못했습니다: ' + (e.message || e)); }
       SUB.page = '드라이브에 저장 중'; render();
       const r = await relay('report', { insp, name: '0 결과보고서 · ' + IC.store.name + ' · ' + IC.date + '.pdf', data: pdf.base64 });
-      IC.pdf = { fileId: r.fileId, url: r.url, pages: pdf.pages }; milPut(IC);
+      IC.pdf = { fileId: r.fileId, url: r.url, pages: pdf.pages, viewKey: r.viewKey || '' }; milPut(IC);
     }
     SUB.step = 3; SUB.pdfFail = false; render();
     const rec = buildRecord(sc);
     try { await db.collection('INSPECTIONS').doc(IC.id).set(rec); }
     catch (e) { throw new Error('점검 기록을 저장하지 못했습니다: ' + (e.code === 'permission-denied' ? 'Firebase 규칙(INSPECTIONS)이 아직 안 올라갔을 수 있어요' : (e.message || e.code))); }
     SUB.step = 4; render();
-    LAST = { store: IC.store.name, date: IC.date, inspector: IC.inspector.name + (IC.inspector.title ? ' ' + IC.inspector.title : ''), sc, issues: rec.counts.issues, photos: rec.counts.photos, counts: rec.counts, folderUrl: rec.folderUrl, pdfUrl: rec.pdfUrl };
+    /* D2.2 점검자 본인 Teams 로 결과보고서 알림 (실패해도 제출은 끝난 것 · 결과 화면에 사유만 보여 줌) */
+    let teams = '';
+    if (!IC.teamsSent) {
+      try {
+        const c = rec.counts, r = await relay('notify', { sum: { store: rec.storeName, org: [rec.division, rec.dept, rec.team].filter(Boolean).join(' › '), date: rec.date,
+          inspector: rec.inspectorName + (rec.inspectorTitle ? ' ' + rec.inspectorTitle : ''), score: rec.score, grade: rec.grade, issues: c.issues, photos: c.photos,
+          accidents: c.accidents, accOpen: c.accOpen, tasks: c.tasks, tasksOpen: c.tasksOpen, viewUrl: rec.pdfView, folderUrl: rec.folderUrl } });
+        IC.teamsSent = r.to || true; milPut(IC); teams = 'ok:' + (r.to || '');
+      } catch (e) { teams = 'err:' + (e.message || e); }
+    } else teams = 'ok:' + (IC.teamsSent === true ? '' : IC.teamsSent);
+    LAST = { store: IC.store.name, date: IC.date, inspector: IC.inspector.name + (IC.inspector.title ? ' ' + IC.inspector.title : ''), sc, issues: rec.counts.issues, photos: rec.counts.photos, counts: rec.counts, folderUrl: rec.folderUrl, pdfUrl: rec.pdfUrl, viewUrl: rec.pdfView, teams };
     await PH.clear(IC.id);
     milPut(null); IC = null; SUB = null; SHEET = ''; IASK = '';
     MV = 'done'; render(); window.scrollTo(0, 0);
@@ -165,7 +176,7 @@ function vProgress() {
       + '<div class="ihs">' + (s.err ? '[다시 시도]를 누르면 멈춘 곳부터 이어서 해요. 이미 올라간 사진은 다시 올리지 않아요.' : '화면을 끄거나 앱을 닫지 말아 주세요. 사진이 많으면 1~2분 걸려요.') + '</div>'
       + '<div class="spl">' + st(1, '사진 올리기', s.total ? s.done + ' / ' + s.total + '장 · 구글 드라이브' : '올릴 사진 없음 · 드라이브 폴더만 만들어요')
       + st(2, '결과보고서 PDF', s.skipPdf ? '보고서 없이 제출' : (s.step === 2 && s.page ? esc(s.page) : '가로 A4 · 점검 폴더에 저장'))
-      + st(3, '점검 기록 저장', 'Firebase') + st(4, '마무리', '휴대폰에 둔 사진 정리') + '</div>'
+      + st(3, '점검 기록 저장', 'Firebase') + st(4, '마무리', '내 Teams 알림 · 휴대폰에 둔 사진 정리') + '</div>'
       + (s.step === 1 && s.total ? '<div class="spb"><i style="width:' + Math.round(s.done / s.total * 100) + '%"></i></div>' : '')
       + (s.err ? '<div class="ask">' + esc(s.err) + '</div>' : '')
       + (s.err && s.pdfFail ? '<button type="button" class="btn ghost wide" data-a="subNoPdf">보고서 없이 제출하기</button><div class="ihs" style="margin-top:6px">사진과 점검 기록은 그대로 저장돼요. 보고서만 빠져요.</div>' : ''),
@@ -185,8 +196,11 @@ function milDone() {
   frame('<div class="dn"><div class="ring">' + ic('check', 30) + '</div><h2>' + esc(L.store) + ' 점검 완료</h2><p class="muted">' + esc(dayKo(L.date)) + ' · ' + esc(L.inspector) + '</p></div>'
     + '<div class="dsum"><div>종합 점수<b>' + L.sc.score + '</b><small>' + L.sc.grade + '등급</small></div><div class="r">지적사항<b>' + L.issues + '</b><small>건</small></div><div>사진<b>' + L.photos + '</b><small>장</small></div></div>'
     + '<div class="dl">' + rows + '</div>'
-    + (L.pdfUrl ? '<a class="btn red wide" href="' + esc(L.pdfUrl) + '" target="_blank" rel="noopener">' + ic('book', 16) + '결과보고서 PDF 열기</a>' : '<div class="inote">이번 제출은 보고서 PDF 없이 저장됐어요.</div>')
-    + (L.folderUrl ? '<a class="btn ghost wide" href="' + esc(L.folderUrl) + '" target="_blank" rel="noopener">' + ic('folder', 16) + '드라이브 폴더 열기</a>' : '')
+    /* D2.2 보고서는 드라이브 대신 인터넷 창(view.html)으로 · 드라이브 폴더는 PC용으로 아래에 작게 */
+    + (L.viewUrl ? '<a class="btn red wide" href="' + esc(L.viewUrl) + '" target="_blank" rel="noopener">' + ic('book', 16) + '결과보고서 보기</a>'
+      : L.pdfUrl ? '<a class="btn red wide" href="' + esc(L.pdfUrl) + '" target="_blank" rel="noopener">' + ic('book', 16) + '결과보고서 PDF 열기 (드라이브)</a>' : '<div class="inote">이번 제출은 보고서 PDF 없이 저장됐어요.</div>')
+    + (L.teams ? '<div class="inote">' + (L.teams.indexOf('ok:') === 0 ? ic('check', 15) + ' 내 Teams' + (L.teams.length > 3 ? '(' + esc(L.teams.slice(3)) + ')' : '') + '로 결과보고서 알림을 보냈어요. Teams 왼쪽 [채팅]의 「Workflows」에서 볼 수 있어요.' : 'Teams 알림을 못 보냈어요 · ' + esc(L.teams.slice(4)) + ' (점검 제출은 끝났어요)') + '</div>' : '')
+    + (L.folderUrl ? '<a class="btn ghost wide" href="' + esc(L.folderUrl) + '" target="_blank" rel="noopener">' + ic('folder', 16) + '드라이브 폴더 열기 (PC)</a>' : '')
     + '<div class="inote">점검 기록은 Firebase에, 사진과 보고서는 드라이브 「다이소 안전 › 매장 밀착지원」에 저장됐어요. 보고서에는 점수 숫자 대신 상태(우수 · 양호 · 관리필요 · 위험)로 나와요.</div>'
     + '<button class="btn ghost wide" type="button" id="dHome">' + ic('home', 16) + '밀착지원 처음으로</button>');
   $('dHome').onclick = () => { LAST = null; MV = 'home'; render(); window.scrollTo(0, 0); };
