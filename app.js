@@ -1,7 +1,7 @@
 /* 다이소 안전 · 매장 밀착지원 앱 (로그인 → 팀원 확인 → 밀착지원 첫 화면) · 팀원 관리 = 조직도 방식
- * D2.5: 「업무 고르기」 없앰 (시스템 고르기는 다이소 안전 포털) · 팀원 · 매장 관리는 메뉴 「관리 · 마스터」 아래 */
+ * D2.6: 「업무 고르기」 없앰 (시스템 고르기는 다이소 안전 포털) · 팀원 · 매장 관리는 메뉴 「관리 · 마스터」 아래 */
 // ★ 화면 버전: 바꿀 때마다 index.html 의 ?v= 와 같이 올림
-const UI_VERSION = '26.10.29 D2.5';
+const UI_VERSION = '26.10.29 D2.6';
 // 고정 마스터 (firestore.rules 와 같은 값 · 화면에서 못 끔)
 const MASTER_EMAILS = ['zxcv6309@gmail.com'];
 
@@ -35,8 +35,8 @@ const ICON = {
 const ic = (k, sz) => '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"' + (sz ? ' style="width:' + sz + 'px;height:' + sz + 'px"' : '') + '>' + (ICON[k] || '') + '</svg>';
 
 let ME = null;          // { email, name, team, master, member, memberId }
-let VIEW = 'store';     // store(밀착지원) | members(팀원 관리) | stores(매장 관리) · D2.5 업무 고르기 없앰
-const PORTAL_URL = 'https://newjuna.github.io/Daiso-Safety-Portal/';   // D2.5 메뉴 맨 아래 「다이소 안전 포털」
+let VIEW = 'store';     // store(밀착지원) | members(팀원 관리) | stores(매장 관리) · D2.6 업무 고르기 없앰
+const PORTAL_URL = 'https://newjuna.github.io/Daiso-Safety-Portal/';   // D2.6 메뉴 맨 아래 「다이소 안전 포털」
 let MENU = false;
 let ORG = null;         // { units:[], members:[] }
 let SEL = '';           // 고른 조직 id
@@ -90,7 +90,7 @@ function frame(inner, wide) {
   const m = (v, i, t, s) => '<button type="button" class="' + (VIEW === v ? 'on' : '') + '" data-go="' + v + '">' + ic(i) + t + (s ? '<small>' + s + '</small>' : '') + '</button>';
   $('app').innerHTML = '<div class="page' + (wide ? ' wide' : '') + '"><div class="bar"><span class="dot"></span>' + esc(TITLE[VIEW]) + '<button class="mbtn" type="button" id="mbtn" aria-label="메뉴">' + ic(MENU ? 'x' : 'menu', 24) + '</button></div>'
     + '<div class="body">' + inner + '</div>'
-    /* D2.5 메뉴 = 밀착지원 안 (업무 고르기 없음 · 팀원 · 매장 관리는 「관리」 아래 · 맨 아래 포털로) */
+    /* D2.6 메뉴 = 밀착지원 안 (업무 고르기 없음 · 팀원 · 매장 관리는 「관리」 아래 · 맨 아래 포털로) */
     + (MENU ? '<div class="shade" id="shade"></div><div class="menu">' + m('store', 'home', '밀착지원 처음')
       + (ME.master ? '<div class="mh">관리 · 마스터</div>' + m('members', 'users', '팀원 관리') + m('stores', 'list', '매장 관리') : '')
       + '<a class="mlink" href="' + PORTAL_URL + '">' + ic('grid') + '다이소 안전 포털</a>'
@@ -104,10 +104,10 @@ function frame(inner, wide) {
     $('pwa').onclick = () => { MENU = false; render(); if (typeof pwaInstall === 'function') pwaInstall(); };
   }
 }
-function go(v) { if (v === 'home') v = 'store';   // D2.5 업무 고르기 없앰 → 처음 = 밀착지원
+function go(v) { if (v === 'home') v = 'store';   // D2.6 업무 고르기 없앰 → 처음 = 밀착지원
   VIEW = v; MENU = false; FORM = null; ASK = ''; if (v === 'store' && typeof milReset === 'function') milReset(); if (v === 'stores' && typeof SM !== 'undefined') { SM = 'list'; PV = null; TPV = null; SEDIT = ''; TEDIT = ''; } render(); window.scrollTo(0, 0); }
 
-/* D2.5 「업무 고르기」(homeView) · 임시 화면(storeView) 없앰 · 시스템 고르기는 다이소 안전 포털이 함 */
+/* D2.6 「업무 고르기」(homeView) · 임시 화면(storeView) 없앰 · 시스템 고르기는 다이소 안전 포털이 함 */
 
 /* =====================================================================
    팀원 관리 (마스터) · 조직도: 왼쪽 조직 · 오른쪽 사람

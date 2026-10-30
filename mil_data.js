@@ -26,10 +26,15 @@ ladderHighRiskTypes:{
  'A형':'보유 자체가 고위험으로 분류되는 유형'
 },
 /* 각 유형이 어떤 사다리인지 현장에서 바로 알 수 있도록 참고 이미지를 보여준다. */
-/* 구글 드라이브 폴더(사다리 가이드)의 파일ID로 썸네일/원본 URL을 구성한다. */
-/* (Code.gs의 getLadderTypeImages가 폴더를 읽어 파일ID를 채워준다. 처음엔 비어있다가 */
-/*  App.html이 서버에서 받아온 뒤 이 객체를 갱신한다.) */
-ladderTypeImages:{},
+/* D2.6 v4 드라이브 사다리 가이드 폴더 사진을 앱 안(img/ladder)에 넣음 · 드라이브 · 로그인 없이 바로 보이고 PDF 에도 들어감 */
+/*      기타 = 기타1~4 를 한 장에 모은 사진 (v4 폴더의 「기타.jpg」) */
+ladderTypeImages:{
+ '구형 사다리(빨강)':'img/ladder/old-red.jpg',
+ '구형 사다리(검정)':'img/ladder/old-black.jpg',
+ '신형 사다리':'img/ladder/new.jpg',
+ 'A형':'img/ladder/a-type.jpg',
+ '기타':'img/ladder/etc.jpg'
+},
 /* 사다리 이상항목 체크리스트. 9개 세부항목은 현장에서 고르기엔 너무 많아서
    외관상태 / 나사상태 / 기타사항 3개로 묶었다.
    각 배열의 2번째 값(예: '균열, 변형, 파손 등')은 체크박스 아래에 작게 붙는 짧은 설명이다. */

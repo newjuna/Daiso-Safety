@@ -4,8 +4,8 @@
  * 저장 안 하는 것: 로그인 · Firebase 데이터 · 중계(Apps Script) 요청 · 드라이브 (언제나 인터넷으로)
  * 버전을 올릴 때 CACHE 이름도 같이 올리면 예전 저장본이 지워짐
  */
-const CACHE = 'ds-D2.5';
-const SHELL = ['./', './index.html', './style.css', './config.js', './app.js', './stores.js', './mil.js', './mil_data.js', './solutions.js', './photo.js', './insp.js', './acc.js', './dash.js', './report.js', './rpt.js', './submit.js', './report.css', './view.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
+const CACHE = 'ds-D2.6';
+const SHELL = ['./', './index.html', './style.css', './config.js', './app.js', './stores.js', './mil.js', './mil_data.js', './solutions.js', './photo.js', './insp.js', './acc.js', './dash.js', './report.js', './rpt.js', './submit.js', './report.css', './view.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './img/ladder/old-red.jpg', './img/ladder/old-black.jpg', './img/ladder/new.jpg', './img/ladder/a-type.jpg', './img/ladder/etc.jpg'];
 const CDN = ['cdn.jsdelivr.net', 'www.gstatic.com', 'unpkg.com'];
 
 self.addEventListener('install', (e) => {

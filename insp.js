@@ -216,7 +216,7 @@ function milWork() {
   if (!secs().includes(IC.sec) && IC.sec !== 'submit') IC.sec = 'work';
   const k = IC.sec;
   const v = SUB ? vProgress() : k === 'accident' ? vAccident() : k === 'tasks' ? vTasks() : k === 'work' ? (IC.wv === 'q' ? vWorkQ() : vWorkList()) : k === 'ladder' ? vLadder() : (k === 'common' || k === 'fire' || k === 'tbm') ? vCheck(k) : k === 'voice' ? vVoice() : k === 'other' ? vOther() : vSubmit();
-  const sh = SUB ? '' : SHEET === 'toc' ? tocSheet() : SHEET === 'guide' ? guideSheet() : SHEET.indexOf('pv:') === 0 ? pvSheet(SHEET.slice(3)) : '';
+  const sh = SUB ? '' : SHEET === 'toc' ? tocSheet() : SHEET === 'guide' ? guideSheet() : SHEET.indexOf('pv:') === 0 ? pvSheet(SHEET.slice(3)) : SHEET.indexOf('lt:') === 0 ? ltSheet(SHEET.slice(3)) : '';
   const fb = IC.fix && k !== 'submit' ? '<div class="ifix">' + ic('alert', 17) + '<span><b>누락 보완 중</b> · 이 화면을 마치면 누락 목록으로 돌아가요</span><button type="button" class="b sm" data-a="goSec" data-v="submit">목록</button></div>' : '';
   frame((SUB ? '' : secBar() + fb) + '<div class="ib">' + v.html + '</div>' + navBar(v.prev, v.next) + sh);
   const pg = document.querySelector('.page'); pg.onclick = iTap; pg.onchange = iChg; pg.oninput = iInp;
@@ -304,7 +304,9 @@ function vLadder() {
 }
 function ldCard(t) {
   const L = IC.ladder, n = cnt(t), st = L.typeStatus[t] || '', hr = MD.ladderHighRiskTypes[t];
-  let h = '<div class="ld' + (n ? '' : ' off') + (st === 'bad' ? ' rk' : '') + '"><div class="lt"><span class="sw" style="background:' + (LSW[t] || '#d1d5db') + '"></span><span class="ln">' + esc(t) + (hr ? ' <span class="ibg r">고위험</span>' : '') + (n ? '' : '<small>없음</small>') + '</span>'
+  const im = MD.ladderTypeImages && MD.ladderTypeImages[t];   // D2.6 유형 사진 (누르면 크게)
+  let h = '<div class="ld' + (n ? '' : ' off') + (st === 'bad' ? ' rk' : '') + '"><div class="lt">'
+    + (im ? '<button type="button" class="lth" data-a="ltImg" data-v="' + esc(t) + '" aria-label="' + esc(t) + ' 사진 크게 보기"><img src="' + esc(im) + '" alt=""></button>' : '<span class="sw" style="background:' + (LSW[t] || '#d1d5db') + '"></span>') + '<span class="ln">' + esc(t) + (hr ? ' <span class="ibg r">고위험</span>' : '') + (n ? '' : '<small>없음</small>') + '</span>'
     + '<div class="stp"><button type="button" data-a="ldCnt" data-v="' + esc(t) + '" data-d="-1" aria-label="줄이기">−</button><b>' + n + '</b><button type="button" data-a="ldCnt" data-v="' + esc(t) + '" data-d="1" aria-label="늘리기">+</button></div></div>';
   if (n) {
     h += '<div class="seg" style="margin-top:9px">' + segB('ldSt', t + '|good', st === 'good', '양호', 'g') + segB('ldSt', t + '|bad', st === 'bad', '미흡', 'r') + '</div>';
@@ -458,6 +460,8 @@ function guideSheet() {
   }
   return sheetWrap('<h3>' + esc(t) + ' 점검 가이드<button type="button" class="b sm" data-a="shut">닫기</button></h3><div class="ihs">현장이 「미흡 · 위험」에 해당할 때만 답을 바꿔 주세요.</div>' + body);
 }
+/* D2.6 사다리 유형 사진 크게 보기 (사진 보기와 같은 판 · 아래에 유형 이름) */
+const ltSheet = (t) => '<div class="pvw" id="ish"><img src="' + esc((MD.ladderTypeImages || {})[t] || '') + '" alt="' + esc(t) + '"><div class="ltcap">' + esc(t) + (MD.ladderHighRiskTypes[t] ? ' · 고위험' : '') + '</div><button type="button" data-a="shut" aria-label="닫기">' + ic('x', 22) + '</button></div>';
 const pvSheet = (id) => '<div class="pvw" id="ish"><img data-ph="' + esc(id) + '" alt="사진 크게 보기"><button type="button" data-a="shut" aria-label="닫기">' + ic('x', 22) + '</button></div>';
 
 /* =====================================================================
@@ -478,6 +482,7 @@ function iTap(e) {
     case 'shut': SHEET = ''; if (IASK === 'quit') IASK = ''; break;
     case 'guide': SHEET = 'guide'; break;
     case 'pview': SHEET = 'pv:' + v; break;
+    case 'ltImg': SHEET = 'lt:' + v; break;
     case 'askNo': IASK = ''; break;
     case 'goSec': IC.sec = v; if (v === 'work') IC.wv = 'list'; IC.fix = false; SHEET = ''; IASK = ''; top = true; break;
     case 'wList': IC.wv = 'list'; top = true; break;

@@ -33,7 +33,17 @@ const dataUrl = (blob) => new Promise((ok, no) => { const fr = new FileReader();
 async function rptPhotos(jobs) {
   const M = {};
   for (const j of jobs) { try { const b = await PH.get(j.id); if (b) M[j.id] = await dataUrl(b); } catch (e) { /* 빠진 사진은 점선 칸 */ } }
+  await rptLadderImgs();
   return M;
+}
+/* D2.6 사다리 유형 사진 (img/ladder) → dataURL · 보고서 「사다리 보유현황」 카드에 들어감 · 못 읽으면 「가이드 사진 없음」 */
+let RPT_LIMG = {};
+async function rptLadderImgs() {
+  const src = MD.ladderTypeImages || {}, out = {};
+  for (const t of Object.keys(src)) {
+    try { const r = await fetch(src[t]); if (r.ok) out[t] = await dataUrl(await r.blob()); } catch (e) { /* 건너뜀 */ }
+  }
+  RPT_LIMG = out; return out;
 }
 /* ---------- v4 getLandscapeReportSnapshot 과 같은 모양 ---------- */
 function rptSnapshot(M, sc) {
@@ -86,7 +96,7 @@ function rptSnapshot(M, sc) {
     work, findings, hazards: Object.entries(hazards).sort((a, c) => c[1] - a[1]), accidents: AS.accidents, workerOpinions,
     sections: { common: IC.common.issues.length, fire: IC.fire.issues.length, tbm: IC.tbm.issues.length, ladder: IC.ladder.issues.length },
     ladder: { counts: Object.assign({}, IC.ladder.counts), typeStatus: Object.assign({}, IC.ladder.typeStatus) },
-    workDetail, checklists: { common: ckSnap('common'), fire: ckSnap('fire'), tbm: ckSnap('tbm') }, ladderDetail, ladderTypeImages: {}, voiceDetail,
+    workDetail, checklists: { common: ckSnap('common'), fire: ckSnap('fire'), tbm: ckSnap('tbm') }, ladderDetail, ladderTypeImages: RPT_LIMG, voiceDetail,
     tasks: AS.tasks, resultNote: '',
     score: sc.score, grade: sc.grade, scoreParts: sc.parts, hasAccidentScore: !!sc.hasAccident,
     inboundLabor: lb ? { level: lb.level, avgPeople: Math.round(lb.avgPeople * 10) / 10, gapRatioPct: Math.round(lb.gapRatio * 100) } : null,

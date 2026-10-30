@@ -406,3 +406,8 @@ a.pht{display:block}
 .dziss small{display:block;font-size:11px;color:var(--sub)}
 .dziss em{font-style:normal;font-weight:700;font-size:11.5px;white-space:nowrap;color:var(--accent)}
 .dzrb{margin-top:9px;display:flex;align-items:center;justify-content:center;gap:6px;width:100%;border:1px solid var(--line);background:#fff;border-radius:11px;padding:9px;font-size:13px;font-weight:700;color:var(--navy)}
+/* D2.6 사다리 유형 사진 */
+.lth{width:52px;height:52px;flex:none;border:1px solid var(--line);border-radius:11px;background:#fff;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.lth img{width:100%;height:100%;object-fit:cover;display:block}
+.ld.off .lth{opacity:.6}
+.ltcap{position:absolute;left:0;right:0;bottom:calc(18px + env(safe-area-inset-bottom));text-align:center;color:#fff;font-size:15px;font-weight:700}
