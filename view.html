@@ -1,0 +1,67 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>결과보고서 · 다이소 안전</title>
+<meta name="theme-color" content="#ffffff">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<!--
+  다이소 안전 · 결과보고서 보기 (D2.2)
+  view.html?k=보기키 → 중계(Apps Script)에서 PDF 를 받아 이 창 안에서 그림 (pdf.js)
+  드라이브 앱 · 구글 로그인 없이 열림 (Teams 안 브라우저 · 휴대폰 브라우저 · PC 모두)
+-->
+<style>
+ *{box-sizing:border-box}
+ body{margin:0;background:#e5e7eb;font-family:'Pretendard Variable',Pretendard,-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#111827;letter-spacing:-.2px}
+ .bar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:9px;height:54px;padding:0 12px 0 16px;background:#fff;border-bottom:1px solid #eef0f2;font-weight:700;font-size:15.5px}
+ .bar .dot{width:10px;height:10px;border-radius:50%;background:#d7262e;flex:none}
+ .bar .t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .bar a,.bar button{margin-left:auto;flex:none;border:1px solid #e5e7eb;background:#fff;border-radius:10px;padding:7px 11px;font:inherit;font-size:13px;font-weight:600;color:#111827;text-decoration:none}
+ .msg{max-width:520px;margin:70px auto;padding:0 22px;text-align:center;font-size:14px;line-height:1.7;color:#4b5563}
+ .msg b{display:block;font-size:17px;color:#111827;margin-bottom:6px}
+ .spin{width:34px;height:34px;margin:0 auto 14px;border:3px solid #fde2e2;border-top-color:#d7262e;border-radius:50%;animation:s 1s linear infinite}
+ @keyframes s{to{transform:rotate(360deg)}}
+ .pg{display:block;margin:10px auto;max-width:1240px;width:calc(100% - 16px);background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.12)}
+ .cnt{position:fixed;right:10px;bottom:calc(12px + env(safe-area-inset-bottom));background:rgba(17,24,39,.8);color:#fff;font-size:12px;border-radius:10px;padding:4px 9px}
+</style></head><body>
+<div class="bar"><span class="dot"></span><span class="t" id="ttl">결과보고서</span><button type="button" id="dl" hidden>PDF 받기</button></div>
+<div id="out"><div class="msg"><div class="spin"></div><b>보고서를 불러오는 중</b>사진이 많으면 몇 초 걸려요.</div></div>
+<div class="cnt" id="cnt" hidden></div>
+<script src="config.js?v=D2.2"></script>
+<script>
+(async function () {
+  const out = document.getElementById('out');
+  const fail = (t, s) => { out.innerHTML = '<div class="msg"><b>' + t + '</b>' + (s || '') + '</div>'; };
+  const k = new URLSearchParams(location.search).get('k') || '';
+  if (!/^[a-f0-9]{40,64}$/i.test(k)) return fail('보고서 주소가 올바르지 않아요', 'Teams 알림이나 점검 완료 화면의 [결과보고서 보기]로 다시 열어 주세요.');
+  if (!window.RELAY_URL) return fail('보고서를 열 수 없어요', '중계 주소가 설정되지 않았어요.');
+  const load = (src) => new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+  let j;
+  try {
+    const [r] = await Promise.all([fetch(window.RELAY_URL + '?k=' + encodeURIComponent(k)), load('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.min.js').catch(() => load('https://unpkg.com/pdfjs-dist@3.11.174/legacy/build/pdf.min.js'))]);
+    j = await r.json();
+  } catch (e) { return fail('보고서를 불러오지 못했어요', '인터넷 연결을 확인하고 새로 고쳐 주세요.'); }
+  if (!j || !j.ok) return fail('보고서를 열 수 없어요', (j && j.error) || '');
+  const name = j.name || '결과보고서.pdf';
+  document.title = name.replace(/\.pdf$/i, '');
+  document.getElementById('ttl').textContent = name.replace(/^0 결과보고서 · /, '').replace(/\.pdf$/i, '');
+  const bin = atob(j.data), bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const dl = document.getElementById('dl'); dl.hidden = false;
+  dl.onclick = () => { const u = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' })), a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 30000); };
+  if (!window.pdfjsLib) return fail('보고서 그리는 도구를 불러오지 못했어요', '오른쪽 위 [PDF 받기]로 내려받아 열어 주세요.');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.worker.min.js';
+  let pdf;
+  try { pdf = await pdfjsLib.getDocument({ data: bytes }).promise; } catch (e) { return fail('보고서 파일을 읽지 못했어요', '오른쪽 위 [PDF 받기]로 내려받아 열어 주세요.'); }
+  out.innerHTML = '';
+  const cnt = document.getElementById('cnt'), dpr = Math.min(2, window.devicePixelRatio || 1), W = Math.min(1240, window.innerWidth - 16);
+  cnt.hidden = false;
+  for (let n = 1; n <= pdf.numPages; n++) {
+    const p = await pdf.getPage(n), v0 = p.getViewport({ scale: 1 }), v = p.getViewport({ scale: (W / v0.width) * dpr });
+    const c = document.createElement('canvas'); c.className = 'pg'; c.width = v.width; c.height = v.height; out.appendChild(c);
+    await p.render({ canvasContext: c.getContext('2d'), viewport: v }).promise;
+    cnt.textContent = n + ' / ' + pdf.numPages + '장';
+  }
+  setTimeout(() => { cnt.hidden = true; }, 2500);
+})();
+</script></body></html>
