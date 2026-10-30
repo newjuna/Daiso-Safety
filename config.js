@@ -10,4 +10,4 @@ window.FIREBASE_CONFIG = {
 };
 /* D1.8 사진 중계 (Apps Script 웹 앱 주소 · .../exec 로 끝남)
  * Apps Script 에서 [배포] → [새 배포] 한 뒤 나오는 「웹 앱 URL」을 따옴표 안에 붙여 넣으세요. */
-window.RELAY_URL = "";
+window.RELAY_URL = "https://script.google.com/macros/s/AKfycbwxK3rrXTfyjaZ-SfOFGsZfAL2VVe7dVWI-BOxvtRPkrzDzUHQridStJDlr9ljNY-84/exec";
