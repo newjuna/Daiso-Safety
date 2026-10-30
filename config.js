@@ -8,3 +8,6 @@ window.FIREBASE_CONFIG = {
   messagingSenderId: "174882133110",
   appId: "1:174882133110:web:1bd7564451cbb486a6fb57"
 };
+/* D1.8 사진 중계 (Apps Script 웹 앱 주소 · .../exec 로 끝남)
+ * Apps Script 에서 [배포] → [새 배포] 한 뒤 나오는 「웹 앱 URL」을 따옴표 안에 붙여 넣으세요. */
+window.RELAY_URL = "";

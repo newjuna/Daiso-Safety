@@ -29,6 +29,7 @@ function milView() {
   if (!MDATE) MDATE = todayStr();
   TITLE.store = MV === 'start' ? '점검 시작' : '매장 밀착지원';
   if (MV === 'start') return milStart();
+  if (MV === 'done' && typeof milDone === 'function') return milDone();
   if (MV === 'work') {
     // index.html 이 예전 것(점검 화면 파일을 안 부름)이면 멈추지 말고 새로 고치라고 알려 줌
     if (typeof milWork !== 'function') { frame('<div class="note warn">앱 파일 일부가 예전 버전입니다. 화면을 새로 고쳐 주세요. 그래도 같으면 GitHub에 index.html 이 올라갔는지 확인해 주세요.</div>'); return; }

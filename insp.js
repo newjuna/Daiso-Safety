@@ -24,14 +24,15 @@ const SNM = { work: '작업점검', ladder: '사다리', common: '공통·시설
 const INB = { delivery: '오전', inboundStart: '07:00', inboundEnd: '09:00', inboundStaff: '3', inboundHelpers: '2', inboundHelperOutAt: '09:00', inboundBoxes: '200' };
 const LVN = { good: '양호', minor: '위험(경미)', severe: '위험(심각)' }, LVC = { good: 'g', minor: 'w', severe: 'r' };
 const LSW = { '구형 사다리(빨강)': '#dc2626', '구형 사다리(검정)': '#111827' };
-const UI_ONLY = new Set(['toc', 'shut', 'guide', 'pview', 'askNo', 'vAsk', 'oAsk', 'quitAsk', 'submit']);
+const UI_ONLY = new Set(['toc', 'shut', 'guide', 'pview', 'askNo', 'vAsk', 'oAsk', 'quitAsk']);
 
 let IC = null;      // 지금 점검 (화면이 고치는 원본 · 고칠 때마다 localStorage 에 씀)
+let SUB = null;     // 제출 진행 중 { running, step, done, total, err } (submit.js)
 let SHEET = '';     // 아래에서 올라오는 판: '' | 'toc' | 'guide' | 'pv:사진번호'
 let IASK = '';      // 확인 중: 'quit' | 'worker' | 'other:id' | 'submit'
 let SOLC = [], MISS = [], FLASH = 0;
 
-function inspReset() { SHEET = ''; IASK = ''; }
+function inspReset() { SHEET = ''; IASK = ''; if (SUB && !SUB.running) SUB = null; }
 const goodIdx = (q) => (q[4] && q[4].length) ? q[4][0] : Math.max(0, q[1].findIndex((_, i) => !(q[3] || []).includes(i)));
 /* 저장된 점검을 지금 모양으로 맞춤 (빠진 칸 채우기 · 좋은 답 미리 고르기) */
 function inspNorm(c) {
@@ -205,10 +206,10 @@ function milWork() {
   if (!inspCur()) { MV = 'home'; return render(); }
   TITLE.store = IC.store.name;
   const k = IC.sec;
-  const v = k === 'work' ? (IC.wv === 'q' ? vWorkQ() : vWorkList()) : k === 'ladder' ? vLadder() : (k === 'common' || k === 'fire' || k === 'tbm') ? vCheck(k) : k === 'voice' ? vVoice() : k === 'other' ? vOther() : vSubmit();
-  const sh = SHEET === 'toc' ? tocSheet() : SHEET === 'guide' ? guideSheet() : SHEET.indexOf('pv:') === 0 ? pvSheet(SHEET.slice(3)) : '';
+  const v = SUB ? vProgress() : k === 'work' ? (IC.wv === 'q' ? vWorkQ() : vWorkList()) : k === 'ladder' ? vLadder() : (k === 'common' || k === 'fire' || k === 'tbm') ? vCheck(k) : k === 'voice' ? vVoice() : k === 'other' ? vOther() : vSubmit();
+  const sh = SUB ? '' : SHEET === 'toc' ? tocSheet() : SHEET === 'guide' ? guideSheet() : SHEET.indexOf('pv:') === 0 ? pvSheet(SHEET.slice(3)) : '';
   const fb = IC.fix && k !== 'submit' ? '<div class="ifix">' + ic('alert', 17) + '<span><b>누락 보완 중</b> · 이 화면을 마치면 누락 목록으로 돌아가요</span><button type="button" class="b sm" data-a="goSec" data-v="submit">목록</button></div>' : '';
-  frame(secBar() + fb + '<div class="ib">' + v.html + '</div>' + navBar(v.prev, v.next) + sh);
+  frame((SUB ? '' : secBar() + fb) + '<div class="ib">' + v.html + '</div>' + navBar(v.prev, v.next) + sh);
   const pg = document.querySelector('.page'); pg.onclick = iTap; pg.onchange = iChg; pg.oninput = iInp;
   PH.fill();
   if (Date.now() - FLASH < 700) flash();
@@ -219,7 +220,7 @@ function secBar() {
     + '<button type="button" class="dd" data-a="toc">목차' + ic('down', 14) + '</button></div>';
 }
 function navBar(p, n) {
-  const btn = (o, cls, l, r) => '<button type="button" class="b ' + cls + '" data-a="' + o.a + '"' + (o.v != null ? ' data-v="' + esc(o.v) + '"' : '') + '>' + (l ? ic('left', 16) : '') + '<span>' + esc(o.t) + '</span>' + (r ? ic('right', 16) : '') + '</button>';
+  const btn = (o, cls, l, r) => '<button type="button" class="b ' + cls + '" data-a="' + o.a + '"' + (o.v != null ? ' data-v="' + esc(o.v) + '"' : '') + (o.dis ? ' disabled' : '') + '>' + (l ? ic('left', 16) : '') + '<span>' + esc(o.t) + '</span>' + (r ? ic('right', 16) : '') + '</button>';
   return '<span class="isv" id="isv">' + ic('check', 12) + '저장됨</span><nav class="inav">'
     + (p ? btn(p, '', true) : '<button type="button" class="b" disabled>' + ic('left', 16) + '<span>이전</span></button>')
     + (n ? btn(n, 'red', false, true) : '') + '</nav>';
@@ -407,7 +408,7 @@ function vSubmit() {
         + '<div class="rs"><button type="button" class="b sm" data-a="solReset" data-v="' + j + '">' + ic('undo', 14) + '자동 문구로 되돌리기</button></div></div>';
     });
   }
-  if (IASK === 'submit') h += '<div class="ask warnbox">제출(기록 저장 · 사진 올리기 · 보고서 PDF · 팀즈 알림)은 <b>다음 버전</b>에서 연결해요. 지금 점검은 이 휴대폰에 그대로 저장돼 있어서, 연결되면 여기서 바로 제출할 수 있어요.<div class="fbtn"><button class="b" type="button" data-a="askNo">확인</button></div></div>';
+  h += '<div class="inote">[제출하기]를 누르면 사진이 구글 드라이브(다이소 안전 › 매장 밀착지원)에 올라가고, 점검 기록이 저장돼요. 점수는 제출 뒤 결과 화면에서 보여요.</div>';
   return { html: h, prev: pv, next: { t: '제출하기', a: 'submit' } };
 }
 
@@ -503,7 +504,8 @@ function iTap(e) {
     }
     case 'missGo': { const m = MISS[Number(v)]; if (!m) return; IC.fix = true; IC.sec = m.kind; if (m.kind === 'work') { IC.wv = 'q'; IC.wi = m.wi; } top = true; break; }
     case 'solReset': { const x = SOLC[Number(v)]; if (x) delete IC.fixTexts[x.key]; toast('자동 문구로 되돌렸어요'); break; }
-    case 'submit': IASK = 'submit'; break;
+    case 'submit': case 'subRetry': return submitRun();
+    case 'subBack': SUB = null; IC.sec = 'submit'; top = true; break;
     case 'home': SHEET = ''; IASK = ''; MV = 'home'; render(); return window.scrollTo(0, 0);
     case 'quitAsk': IASK = 'quit'; break;
     case 'quit': { const id = IC.id; milPut(null); PH.clear(id); IC = null; SHEET = ''; IASK = ''; MV = 'home'; toast('점검을 지웠습니다'); render(); return window.scrollTo(0, 0); }

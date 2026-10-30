@@ -299,3 +299,31 @@ textarea.it{min-height:78px;resize:vertical;line-height:1.55}
 .pvw img{max-width:100%;max-height:100%;object-fit:contain}
 .pvw button{position:absolute;top:calc(12px + env(safe-area-inset-top));right:12px;width:42px;height:42px;border-radius:50%;border:0;background:rgba(255,255,255,.15);color:#fff;display:flex;align-items:center;justify-content:center}
 @media(max-width:380px){.ifr>label{width:74px}.stp input{width:50px}.stp button{width:34px}}
+/* D1.8 제출 진행 · 결과 */
+.spl{margin-top:14px;border:1px solid var(--line);border-radius:14px;padding:4px 12px}
+.sp{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid #f3f4f6;font-size:14px}
+.sp:last-child{border-bottom:0}
+.sp .c{width:26px;height:26px;border-radius:50%;border:1.6px solid #d1d5db;display:flex;align-items:center;justify-content:center;flex:none;font-size:12px;color:#9ca3af;font-weight:700}
+.sp small{display:block;font-size:12px;color:var(--sub);margin-top:1px}
+.sp.ok .c{background:var(--navy);border-color:var(--navy);color:#fff}
+.sp.ok .c svg.i{stroke-width:3}
+.sp.go .c{border-color:#fde2e2;border-top-color:var(--accent);animation:spin 1s linear infinite;color:transparent}
+.sp.er .c{border-color:var(--accent);background:#fdecec;color:var(--accent)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spb{height:6px;background:#eceef1;border-radius:4px;overflow:hidden;margin-top:12px}
+.spb i{display:block;height:100%;background:var(--accent);transition:width .3s}
+.dn{text-align:center;padding:26px 0 8px}
+.dn .ring{background:#e8f5ec;color:var(--ok)}
+.dn .ring svg.i{stroke-width:2.6}
+.dn h2{margin:14px 0 4px;font-size:19px;font-weight:700}
+.dsum{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px}
+.dsum div{border:1px solid var(--line);border-radius:14px;padding:10px 6px;text-align:center;font-size:12px;color:var(--sub)}
+.dsum b{display:block;font-size:24px;color:var(--navy);margin-top:2px}
+.dsum small{font-size:11.5px}
+.dsum .r b{color:var(--accent)}
+.dl{margin-top:12px;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.dl div{display:flex;align-items:center;gap:8px;padding:11px 13px;border-bottom:1px solid #f3f4f6;font-size:14px}
+.dl div:last-child{border-bottom:0}
+.dl .n{margin-left:auto;font-size:12px;color:var(--sub)}
+.dl b{width:46px;text-align:right}
+a.btn{text-decoration:none}
