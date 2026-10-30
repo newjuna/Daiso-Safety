@@ -45,12 +45,9 @@ function milHome() {
   frame('<div class="hello">' + esc(ME.team) + '<b>' + esc(ME.name) + ' 님</b></div>'
     + (cur ? '<button class="card resume" type="button" id="mResume"><div class="ic red">' + ic('edit') + '</div><div><h3>이어서 하기</h3><p>' + esc(cur.store.name) + ' · ' + esc(dayKo(cur.date)) + '<br>' + esc(typeof inspProgress === 'function' ? inspProgress(cur) : '') + '</p></div><span class="go">' + ic('right', 18) + '</span></button>' : '')
     + '<button class="card" type="button" id="mNew"><div class="ic navy">' + ic('plus') + '</div><div><h3>새 점검 시작</h3><p>매장을 골라 현장점검을 시작해요</p></div></button>'
-    + '<div class="card off"><div class="ic gray">' + ic('alert') + '</div><div><h3>사고 이력</h3><p>매장별 사고 · 팀 1장 보고서</p></div><span class="tag">준비 중</span></div>'
-    + '<div class="card off"><div class="ic gray">' + ic('chart') + '</div><div><h3>대시보드</h3><p>점검 현황 · 미조치 지적</p></div><span class="tag">준비 중</span></div>'
-    + '<button class="btn ghost" type="button" id="mHome" style="margin-top:18px">' + ic('left', 16) + '업무 고르기</button>');
+    + '<div class="card off"><div class="ic gray">' + ic('chart') + '</div><div><h3>대시보드</h3><p>점검 현황 · 미조치 지적</p></div><span class="tag">준비 중</span></div>');
   if (cur) $('mResume').onclick = () => { MV = 'work'; render(); window.scrollTo(0, 0); };
   $('mNew').onclick = () => { MV = 'start'; MSEL = ''; MQ = ''; MASK = ''; MDATE = todayStr(); render(); window.scrollTo(0, 0); };
-  $('mHome').onclick = () => go('home');
 }
 
 /* ---------- 점검 시작 ---------- */

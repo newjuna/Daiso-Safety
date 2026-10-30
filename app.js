@@ -1,6 +1,7 @@
-/* 다이소 안전 · 첫 화면 (로그인 → 팀원 확인 → 업무 고르기) · 팀원 관리 = 조직도 방식 */
+/* 다이소 안전 · 매장 밀착지원 앱 (로그인 → 팀원 확인 → 밀착지원 첫 화면) · 팀원 관리 = 조직도 방식
+ * D2.4: 「업무 고르기」 없앰 (시스템 고르기는 다이소 안전 포털) · 팀원 · 매장 관리는 메뉴 「관리 · 마스터」 아래 */
 // ★ 화면 버전: 바꿀 때마다 index.html 의 ?v= 와 같이 올림
-const UI_VERSION = '26.10.29 D2.3';
+const UI_VERSION = '26.10.29 D2.4';
 // 고정 마스터 (firestore.rules 와 같은 값 · 화면에서 못 끔)
 const MASTER_EMAILS = ['zxcv6309@gmail.com'];
 
@@ -17,6 +18,7 @@ const newId = (p) => p + '-' + Math.random().toString(36).slice(2, 10).toUpperCa
 /* ---------- 선 아이콘 (인스타그램처럼 얇은 선 · 그림 파일 없이 코드로) ---------- */
 const ICON = {
   store: '<path d="M3 9l1.5-5h15L21 9"/><path d="M4 9v11h16V9"/><path d="M3 9h18"/><path d="M9 20v-6h6v6"/>',
+  grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
   contract: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h3"/>',
   bell: '<path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 0 0 4 0"/>',
   menu: '<path d="M4 7h16M4 12h16M4 17h16"/>', x: '<path d="M6 6l12 12M18 6L6 18"/>',
@@ -33,7 +35,8 @@ const ICON = {
 const ic = (k, sz) => '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"' + (sz ? ' style="width:' + sz + 'px;height:' + sz + 'px"' : '') + '>' + (ICON[k] || '') + '</svg>';
 
 let ME = null;          // { email, name, team, master, member, memberId }
-let VIEW = 'home';      // home | store | members
+let VIEW = 'store';     // store(밀착지원) | members(팀원 관리) | stores(매장 관리) · D2.4 업무 고르기 없앰
+const PORTAL_URL = 'https://newjuna.github.io/Daiso-Safety-Portal/';   // D2.4 메뉴 맨 아래 「다이소 안전 포털」
 let MENU = false;
 let ORG = null;         // { units:[], members:[] }
 let SEL = '';           // 고른 조직 id
@@ -87,8 +90,10 @@ function frame(inner, wide) {
   const m = (v, i, t, s) => '<button type="button" class="' + (VIEW === v ? 'on' : '') + '" data-go="' + v + '">' + ic(i) + t + (s ? '<small>' + s + '</small>' : '') + '</button>';
   $('app').innerHTML = '<div class="page' + (wide ? ' wide' : '') + '"><div class="bar"><span class="dot"></span>' + esc(TITLE[VIEW]) + '<button class="mbtn" type="button" id="mbtn" aria-label="메뉴">' + ic(MENU ? 'x' : 'menu', 24) + '</button></div>'
     + '<div class="body">' + inner + '</div>'
-    + (MENU ? '<div class="shade" id="shade"></div><div class="menu">' + m('home', 'home', '업무 고르기') + m('store', 'store', '매장 밀착지원')
-      + (ME.master ? m('members', 'users', '팀원 관리', '마스터') + m('stores', 'list', '매장 관리', '마스터') : '')
+    /* D2.4 메뉴 = 밀착지원 안 (업무 고르기 없음 · 팀원 · 매장 관리는 「관리」 아래 · 맨 아래 포털로) */
+    + (MENU ? '<div class="shade" id="shade"></div><div class="menu">' + m('store', 'home', '밀착지원 처음')
+      + (ME.master ? '<div class="mh">관리 · 마스터</div>' + m('members', 'users', '팀원 관리') + m('stores', 'list', '매장 관리') : '')
+      + '<a class="mlink" href="' + PORTAL_URL + '">' + ic('grid') + '다이소 안전 포털</a>'
       + '<button type="button" id="pwa">' + ic('install') + (typeof pwaIsApp === 'function' && pwaIsApp() ? '앱으로 쓰는 중<small>설치됨</small>' : '홈 화면에 앱 추가') + '</button><button type="button" id="out">' + ic('logout') + '로그아웃</button><div class="ver">버전 ' + UI_VERSION + '</div></div>' : '')
     + '</div>';
   $('mbtn').onclick = () => { MENU = !MENU; render(); };
@@ -99,23 +104,10 @@ function frame(inner, wide) {
     $('pwa').onclick = () => { MENU = false; render(); if (typeof pwaInstall === 'function') pwaInstall(); };
   }
 }
-function go(v) { VIEW = v; MENU = false; FORM = null; ASK = ''; if (v === 'store' && typeof milReset === 'function') milReset(); if (v === 'stores' && typeof SM !== 'undefined') { SM = 'list'; PV = null; TPV = null; SEDIT = ''; TEDIT = ''; } render(); window.scrollTo(0, 0); }
+function go(v) { if (v === 'home') v = 'store';   // D2.4 업무 고르기 없앰 → 처음 = 밀착지원
+  VIEW = v; MENU = false; FORM = null; ASK = ''; if (v === 'store' && typeof milReset === 'function') milReset(); if (v === 'stores' && typeof SM !== 'undefined') { SM = 'list'; PV = null; TPV = null; SEDIT = ''; TEDIT = ''; } render(); window.scrollTo(0, 0); }
 
-/* ---------- 업무 고르기 ---------- */
-function homeView() {
-  frame('<div class="hello">' + esc(ME.team) + '<b>' + esc(ME.name) + ' 님</b></div>'
-    + '<button class="card" type="button" id="toStore"><div class="ic red">' + ic('store') + '</div><div><h3>매장 밀착지원</h3><p>매장 현장점검 · 결과보고서 · 사고 이력 · 대시보드</p></div></button>'
-    + '<div class="card off"><div class="ic gray">' + ic('contract') + '</div><div><h3>도급 안전관리</h3><p>나중에 연결 예정</p></div><span class="tag">준비 중</span></div>'
-    + '<div class="todo">' + ic('bell') + '<div><b>처리할 일</b><br><span class="muted">매장 밀착지원을 옮기면 여기에 미조치 지적 · 재점검 예정이 표시됩니다.</span></div></div>');
-  $('toStore').onclick = () => go('store');
-}
-
-/* ---------- 매장 밀착지원 (다음 차례에 옮김) ---------- */
-function storeView() {
-  frame('<div class="ready"><div class="ring red">' + ic('store', 30) + '</div><h2>매장 밀착지원</h2><p class="muted">다음 차례부터 기능을 하나씩 옮겨 옵니다.<br>매장 선택 → 점검 → 사진 → 결과보고서 → 사고 이력 → 대시보드</p>'
-    + '<button class="btn ghost" type="button" id="toHome">' + ic('left', 16) + '이전으로</button></div>');
-  $('toHome').onclick = () => go('home');
-}
+/* D2.4 「업무 고르기」(homeView) · 임시 화면(storeView) 없앰 · 시스템 고르기는 다이소 안전 포털이 함 */
 
 /* =====================================================================
    팀원 관리 (마스터) · 조직도: 왼쪽 조직 · 오른쪽 사람
@@ -268,14 +260,14 @@ async function memDel(id) {
 function render() {
   if (!ME) return loginView();
   if (!ME.member) return noAccessView();
-  if (VIEW === 'store') return typeof milView === 'function' ? milView() : storeView();
+  if (VIEW === 'home') VIEW = 'store';
   if (VIEW === 'members') return membersView();
   if (VIEW === 'stores') return storesView();
-  return homeView();
+  return milView();
 }
 auth.getRedirectResult().catch((e) => toast('로그인하지 못했습니다: ' + (e.message || e.code)));
 auth.onAuthStateChanged(async (u) => {
-  if (!u) { ME = null; VIEW = 'home'; MENU = false; return render(); }
+  if (!u) { ME = null; VIEW = 'store'; MENU = false; return render(); }
   $('app').innerHTML = '<div class="boot">팀원 확인 중…</div>';
   await checkMember(u); render();
 });
