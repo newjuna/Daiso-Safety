@@ -1,7 +1,8 @@
-/* 다이소 안전 · 매장 밀착지원 제출 (D1.8)
+/* 다이소 안전 · 매장 밀착지원 제출 (D1.8 · D1.9 보고서)
  * [제출하기] → ① 사진 올리기 (한 장씩 · Apps Script 중계 → 구글 드라이브)
- *            → ② 점검 기록 저장 (Firebase INSPECTIONS/점검ID · 답 · 사진 링크 · 해결방안 · 점수)
- *            → ③ 마무리 (휴대폰에 둔 사진 · 진행 중 점검 지우기) → 결과 화면 (점수는 여기서 처음 보여 줌)
+ *            → ② 결과보고서 PDF (rpt.js · 휴대폰에서 만들어 같은 폴더에 「0 결과보고서 …pdf」)
+ *            → ③ 점검 기록 저장 (Firebase INSPECTIONS/점검ID · 답 · 사진 링크 · 해결방안 · 점수 · 보고서 링크)
+ *            → ④ 마무리 (휴대폰에 둔 사진 · 진행 중 점검 지우기) → 결과 화면 (점수는 여기서 처음 보여 줌)
  * 중간에 끊기면 [다시 시도] = 멈춘 곳부터 (올라간 사진은 IC.up 에 적어 둬서 다시 안 올림)
  * 점수 계산은 v4 scoreSummary 그대로 (사고이력이 아직 없으니 사고 배점은 작업점검으로 옮김)
  */
@@ -77,6 +78,7 @@ function buildRecord(sc) {
     storeId: IC.store.id || '', storeName: IC.store.name, team: IC.store.team || '', dept: IC.store.dept || '', division: IC.store.division || '', storeType: IC.store.type || '',
     inspectorEmail: IC.inspector.email, inspectorName: IC.inspector.name, inspectorTitle: IC.inspector.title || '',
     folderId: (IC.folder && IC.folder.id) || '', folderUrl: (IC.folder && IC.folder.url) || '',
+    pdfId: (IC.pdf && IC.pdf.fileId) || '', pdfUrl: (IC.pdf && IC.pdf.url) || '', pdfPages: (IC.pdf && IC.pdf.pages) || 0,
     score: sc.score, grade: sc.grade, parts: sc.parts, weights: sc.weights,
     labor: labor(), stretchGap: gap(),
     counts: { issues: items.length, photos, workRisk: items.filter((x) => x.group === '작업점검').length, ladder: IC.ladder.issues.length, common: IC.common.issues.length, fire: IC.fire.issues.length, tbm: IC.tbm.issues.length, workers: IC.workers.length, others: IC.others.length },
@@ -90,7 +92,8 @@ async function submitRun() {
   if (SUB && SUB.running) return;
   if (missing().length) { IC.sec = 'submit'; return render(); }
   const jobs = photoJobs(); IC.up = IC.up || {};
-  SUB = { running: true, step: 1, done: jobs.filter((j) => IC.up[j.id]).length, total: jobs.length, err: '' };
+  const skipPdf = !!(SUB && SUB.skipPdf);
+  SUB = { running: true, step: 1, done: jobs.filter((j) => IC.up[j.id]).length, total: jobs.length, err: '', skipPdf };
   render(); window.scrollTo(0, 0);
   try {
     const insp = { id: IC.id, date: IC.date, store: IC.store.name, inspector: IC.inspector.name, folderId: (IC.folder && IC.folder.id) || '' };
@@ -105,13 +108,26 @@ async function submitRun() {
     }
     const keep = jobs.map((j) => IC.up[j.id] && IC.up[j.id].fileId).filter(Boolean);
     const t = await relay('tidy', { insp, keep });
-    IC.folder = { id: t.folderId, url: t.folderUrl }; milPut(IC);
-    SUB.step = 2; render();
-    const sc = scoreAll(), rec = buildRecord(sc);
+    IC.folder = { id: t.folderId, url: t.folderUrl }; insp.folderId = t.folderId; milPut(IC);
+    const sc = scoreAll();
+    /* ② 보고서 PDF (D1.9) · 실패하면 [다시 시도] 또는 [보고서 없이 제출] */
+    SUB.step = 2; SUB.page = ''; render();
+    if (!IC.pdf && !SUB.skipPdf) {
+      let pdf;
+      try {
+        const snap = rptSnapshot(await rptPhotos(jobs), sc);
+        pdf = await rptPdf(snap, (i, n) => { SUB.page = i + ' / ' + n + '장'; render(); });
+      } catch (e) { SUB.pdfFail = true; throw new Error('보고서 PDF를 만들지 못했습니다: ' + (e.message || e)); }
+      SUB.page = '드라이브에 저장 중'; render();
+      const r = await relay('report', { insp, name: '0 결과보고서 · ' + IC.store.name + ' · ' + IC.date + '.pdf', data: pdf.base64 });
+      IC.pdf = { fileId: r.fileId, url: r.url, pages: pdf.pages }; milPut(IC);
+    }
+    SUB.step = 3; SUB.pdfFail = false; render();
+    const rec = buildRecord(sc);
     try { await db.collection('INSPECTIONS').doc(IC.id).set(rec); }
     catch (e) { throw new Error('점검 기록을 저장하지 못했습니다: ' + (e.code === 'permission-denied' ? 'Firebase 규칙(INSPECTIONS)이 아직 안 올라갔을 수 있어요' : (e.message || e.code))); }
-    SUB.step = 3; render();
-    LAST = { store: IC.store.name, date: IC.date, inspector: IC.inspector.name + (IC.inspector.title ? ' ' + IC.inspector.title : ''), sc, issues: rec.counts.issues, photos: rec.counts.photos, counts: rec.counts, folderUrl: rec.folderUrl };
+    SUB.step = 4; render();
+    LAST = { store: IC.store.name, date: IC.date, inspector: IC.inspector.name + (IC.inspector.title ? ' ' + IC.inspector.title : ''), sc, issues: rec.counts.issues, photos: rec.counts.photos, counts: rec.counts, folderUrl: rec.folderUrl, pdfUrl: rec.pdfUrl };
     await PH.clear(IC.id);
     milPut(null); IC = null; SUB = null; SHEET = ''; IASK = '';
     MV = 'done'; render(); window.scrollTo(0, 0);
@@ -133,9 +149,11 @@ function vProgress() {
     html: '<div class="ih">' + (s.err ? '제출이 멈췄어요' : '제출하고 있어요') + '</div>'
       + '<div class="ihs">' + (s.err ? '[다시 시도]를 누르면 멈춘 곳부터 이어서 해요. 이미 올라간 사진은 다시 올리지 않아요.' : '화면을 끄거나 앱을 닫지 말아 주세요. 사진이 많으면 1~2분 걸려요.') + '</div>'
       + '<div class="spl">' + st(1, '사진 올리기', s.total ? s.done + ' / ' + s.total + '장 · 구글 드라이브' : '올릴 사진 없음 · 드라이브 폴더만 만들어요')
-      + st(2, '점검 기록 저장', 'Firebase') + st(3, '마무리', '휴대폰에 둔 사진 정리') + '</div>'
+      + st(2, '결과보고서 PDF', s.skipPdf ? '보고서 없이 제출' : (s.step === 2 && s.page ? esc(s.page) : '가로 A4 · 점검 폴더에 저장'))
+      + st(3, '점검 기록 저장', 'Firebase') + st(4, '마무리', '휴대폰에 둔 사진 정리') + '</div>'
       + (s.step === 1 && s.total ? '<div class="spb"><i style="width:' + Math.round(s.done / s.total * 100) + '%"></i></div>' : '')
-      + (s.err ? '<div class="ask">' + esc(s.err) + '</div>' : ''),
+      + (s.err ? '<div class="ask">' + esc(s.err) + '</div>' : '')
+      + (s.err && s.pdfFail ? '<button type="button" class="btn ghost wide" data-a="subNoPdf">보고서 없이 제출하기</button><div class="ihs" style="margin-top:6px">사진과 점검 기록은 그대로 저장돼요. 보고서만 빠져요.</div>' : ''),
     prev: s.err ? { t: '점검 화면으로', a: 'subBack' } : null,
     next: s.err ? { t: '다시 시도', a: 'subRetry' } : { t: '제출 중…', a: 'noop', dis: true }
   };
@@ -151,8 +169,9 @@ function milDone() {
   frame('<div class="dn"><div class="ring">' + ic('check', 30) + '</div><h2>' + esc(L.store) + ' 점검 완료</h2><p class="muted">' + esc(dayKo(L.date)) + ' · ' + esc(L.inspector) + '</p></div>'
     + '<div class="dsum"><div>종합 점수<b>' + L.sc.score + '</b><small>' + L.sc.grade + '등급</small></div><div class="r">지적사항<b>' + L.issues + '</b><small>건</small></div><div>사진<b>' + L.photos + '</b><small>장</small></div></div>'
     + '<div class="dl">' + rows + '</div>'
-    + (L.folderUrl ? '<a class="btn red wide" href="' + esc(L.folderUrl) + '" target="_blank" rel="noopener">' + ic('folder', 16) + '드라이브 폴더 열기</a>' : '')
-    + '<div class="inote">보고서 PDF는 다음 버전(D1.9)부터 이 폴더에 같이 만들어져요. 점검 기록은 Firebase에 저장됐어요.</div>'
+    + (L.pdfUrl ? '<a class="btn red wide" href="' + esc(L.pdfUrl) + '" target="_blank" rel="noopener">' + ic('book', 16) + '결과보고서 PDF 열기</a>' : '<div class="inote">이번 제출은 보고서 PDF 없이 저장됐어요.</div>')
+    + (L.folderUrl ? '<a class="btn ghost wide" href="' + esc(L.folderUrl) + '" target="_blank" rel="noopener">' + ic('folder', 16) + '드라이브 폴더 열기</a>' : '')
+    + '<div class="inote">점검 기록은 Firebase에, 사진과 보고서는 드라이브 「다이소 안전 › 매장 밀착지원」에 저장됐어요. 보고서에는 점수 숫자 대신 상태(우수 · 양호 · 관리필요 · 위험)로 나와요.</div>'
     + '<button class="btn ghost wide" type="button" id="dHome">' + ic('home', 16) + '밀착지원 처음으로</button>');
   $('dHome').onclick = () => { LAST = null; MV = 'home'; render(); window.scrollTo(0, 0); };
 }

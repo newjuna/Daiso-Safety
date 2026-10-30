@@ -1,0 +1,689 @@
+/* ============================================================
+   안전보건 현장진단 결과보고서 스타일 (sr- 디자인 시스템)
+
+   ★ 클래스명 규칙
+   이 CSS는 PDF를 만들 때 앱 화면(style.css)에 잠깐 주입된다.
+   그래서 .card / .hero / .meta / .page 같은 흔한 이름을 쓰면 앱 화면이 깨진다.
+   모든 선택자를 .sr-report 아래로 한정하고, 클래스명은 sr- 접두어만 쓴다.
+
+   ★ 색상 표기
+   light-dark() / color-mix() 는 html2canvas가 해석하지 못해 PDF 색이 빠진다.
+   그래서 라이트 값으로 고정하고, 다크모드는 아래 @media로 따로 덮는다.
+
+   ★ 페이지 단위
+   한 장 = .sr-sheet (1240 x 880px, A4 가로와 같은 비율).
+   화면에서는 상단 버튼으로 한 장씩 보고, 인쇄/PDF에서는 전부 펼쳐 한 장씩 찍는다.
+   ============================================================ */
+
+:root{
+  --sr-navy:#13245a; --sr-navy-2:#203a7a; --sr-navy-soft:#eef1f8;
+  --sr-red:#e60033; --sr-red-soft:#fff0f4;
+  --sr-ink:#27292d; --sr-muted:#70747b; --sr-line:#e2e4e8;
+  --sr-paper:#ffffff; --sr-soft:#f4f5f7;
+  --sr-green:#16845b; --sr-green-soft:#eaf9f1;
+  --sr-orange:#d97706; --sr-orange-soft:#fff5e6;
+}
+
+html{scroll-behavior:smooth}
+body{margin:0;background:#eef1f5}
+
+.sr-report{color:var(--sr-ink);font-family:"Pretendard Variable",Pretendard,"Noto Sans KR","Malgun Gothic",system-ui,sans-serif;padding:24px}
+.sr-report *{box-sizing:border-box}
+
+/* ===== 상단 페이지 이동 바 ===== */
+.sr-report .sr-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.sr-report .sr-toolbar strong{font-weight:500;font-size:14px}
+.sr-report .sr-pages{display:flex;gap:6px;flex-wrap:wrap}
+.sr-report .sr-page-btn{border:1px solid var(--sr-line);border-radius:999px;background:var(--sr-paper);color:var(--sr-muted);padding:7px 11px;font:inherit;font-size:12px;cursor:pointer}
+.sr-report .sr-page-btn[aria-pressed="true"]{background:var(--sr-navy);border-color:var(--sr-navy);color:#fff}
+.sr-report .sr-print-btn{border:1px solid var(--sr-navy);background:var(--sr-navy);color:#fff;border-radius:999px;padding:7px 13px;font:inherit;font-size:12px;cursor:pointer}
+
+/* ===== 페이지(한 장) ===== */
+.sr-report .sr-sheet{display:none;width:1240px;max-width:100%;min-height:880px;margin:0 auto 22px;background:var(--sr-paper);box-shadow:0 18px 55px rgba(39,41,45,.13);overflow:hidden;position:relative}
+.sr-report .sr-sheet.active{display:block}
+
+/* ===== 표지 머리 ===== */
+.sr-report .sr-cover-head{min-height:245px;padding:34px 38px;background:linear-gradient(135deg,#0e1c46,var(--sr-navy-2));color:#fff;position:relative;overflow:hidden;border-bottom:5px solid var(--sr-red)}
+.sr-report .sr-cover-head:after{content:"";position:absolute;width:250px;height:250px;border:38px solid rgba(255,255,255,.08);border-radius:50%;right:-80px;top:-100px}
+.sr-report .sr-kicker{font-size:11px;letter-spacing:.12em;opacity:.8}
+.sr-report .sr-cover-head h1{font-size:34px;line-height:1.2;margin:34px 0 8px;font-weight:500}
+.sr-report .sr-subtitle{font-size:13px;opacity:.9}
+.sr-report .sr-meta{position:absolute;left:38px;right:38px;bottom:24px;display:flex;gap:24px;font-size:12px;z-index:2;flex-wrap:wrap}
+
+/* ===== 본문 ===== */
+.sr-report .sr-body{padding:30px 38px 38px}
+
+/* 종합 진단결과 + 요약. 점수·등급 숫자는 절대 넣지 않는다(현장 피드백 확정사항). */
+.sr-report .sr-score-row{display:grid;grid-template-columns:200px 1fr;gap:20px;align-items:stretch}
+.sr-report .sr-score{background:var(--sr-ink);color:var(--sr-paper);padding:22px;border-radius:20px;display:flex;flex-direction:column;justify-content:space-between;gap:12px}
+.sr-report .sr-score span{font-size:12px;opacity:.72}
+.sr-report .sr-score b{font-size:30px;line-height:1.2;font-weight:500}
+.sr-report .sr-score em{font-style:normal;font-size:13px;opacity:.85}
+.sr-report .sr-verdict{border-top:4px solid var(--sr-red);padding:20px 22px;background:var(--sr-soft);border-radius:0 0 20px 20px}
+.sr-report .sr-verdict small,.sr-report .sr-section-title small{display:block;color:var(--sr-red);font-size:10px;letter-spacing:.1em;margin-bottom:6px}
+.sr-report .sr-verdict h2{font-size:22px;margin:0 0 9px;font-weight:500;line-height:1.3}
+.sr-report .sr-verdict p{margin:0;color:var(--sr-muted);font-size:13px;line-height:1.6}
+.sr-report .sr-verdict .sr-hl{color:var(--sr-red);font-weight:500}
+
+.sr-report .sr-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:22px 0}
+.sr-report .sr-metric{padding:16px;border-bottom:2px solid var(--sr-line);background:var(--sr-soft)}
+.sr-report .sr-metric span{display:block;color:var(--sr-muted);font-size:11px}
+.sr-report .sr-metric b{font-size:24px;font-weight:500}
+.sr-report .sr-metric i{font-style:normal;font-size:11px;color:var(--sr-muted)}
+.sr-report .sr-metric.warn{border-color:var(--sr-red)}
+
+.sr-report .sr-section-title{display:flex;align-items:flex-end;justify-content:space-between;margin:24px 0 12px;gap:12px}
+.sr-report .sr-section-title h2{font-size:20px;margin:0;font-weight:500}
+.sr-report .sr-section-title>span{font-size:11px;color:var(--sr-muted)}
+
+/* 우선 조치사항 / 개선조치 계획 줄 */
+.sr-report .sr-priority{display:grid;grid-template-columns:32px 1fr auto;gap:12px;align-items:center;padding:13px 0;border-top:1px solid var(--sr-line)}
+.sr-report .sr-priority:first-of-type{border-top:0}
+.sr-report .sr-priority>i{width:30px;height:30px;border-radius:10px;background:var(--sr-navy-soft);color:var(--sr-navy);display:grid;place-items:center;font-style:normal;font-size:12px}
+.sr-report .sr-priority b{display:block;font-size:13px;font-weight:500}
+.sr-report .sr-priority small{color:var(--sr-muted);font-size:11px}
+.sr-report .sr-status{padding:5px 9px;border-radius:999px;background:var(--sr-red-soft);color:var(--sr-red);font-size:10px;white-space:nowrap}
+.sr-report .sr-status.warn{background:var(--sr-orange-soft);color:var(--sr-orange)}
+.sr-report .sr-status.good{background:var(--sr-green-soft);color:var(--sr-green)}
+
+/* ===== 속장 머리 ===== */
+.sr-report .sr-page-head{padding:28px 38px 18px;border-bottom:1px solid var(--sr-line);display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
+.sr-report .sr-page-head small{color:var(--sr-red);letter-spacing:.1em;font-size:10px}
+.sr-report .sr-page-head h2{margin:3px 0 0;font-size:28px;font-weight:500}
+.sr-report .sr-page-no{color:var(--sr-muted);font-size:11px}
+
+/* ===== 점검동선 ===== */
+.sr-report .sr-route{position:relative;padding:10px 0}
+.sr-report .sr-route:before{content:"";position:absolute;left:24px;top:24px;bottom:24px;width:2px;background:var(--sr-line)}
+.sr-report .sr-route-item{position:relative;display:grid;grid-template-columns:50px 1fr 96px;gap:13px;align-items:center;padding:11px 0}
+.sr-report .sr-route-mark{width:48px;height:48px;border-radius:16px;background:var(--sr-soft);display:grid;place-items:center;z-index:1;font-size:12px}
+.sr-report .sr-route-item.risk .sr-route-mark{background:var(--sr-red);color:#fff}
+.sr-report .sr-route-item.watch .sr-route-mark{background:var(--sr-orange-soft);color:var(--sr-orange)}
+.sr-report .sr-route-item.good .sr-route-mark{background:var(--sr-green-soft);color:var(--sr-green)}
+.sr-report .sr-route-item.none .sr-route-mark{opacity:.55}
+.sr-report .sr-route-copy b{display:block;font-size:15px;font-weight:500}
+.sr-report .sr-route-copy p{margin:3px 0 0;color:var(--sr-muted);font-size:11px;line-height:1.5}
+.sr-report .sr-route-state{text-align:right;font-size:11px;color:var(--sr-muted)}
+.sr-report .sr-route-state strong{display:block;font-size:17px;color:var(--sr-ink);font-weight:500}
+
+/* ===== 위험분석 카드 ===== */
+.sr-report .sr-risk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.sr-report .sr-risk-card{padding:18px;background:var(--sr-soft);border-top:4px solid var(--sr-red);min-height:215px}
+.sr-report .sr-risk-card.orange{border-color:var(--sr-orange)}
+.sr-report .sr-risk-card.green{border-color:var(--sr-green)}
+.sr-report .sr-risk-card>small{color:var(--sr-muted);font-size:10px;letter-spacing:.08em}
+.sr-report .sr-risk-card h3{font-size:17px;margin:10px 0 15px;font-weight:500;line-height:1.35}
+.sr-report .sr-risk-card dl{margin:0}
+.sr-report .sr-risk-card dt{color:var(--sr-muted);font-size:10px;margin-top:10px}
+.sr-report .sr-risk-card dd{font-size:12px;margin:2px 0 0;line-height:1.5}
+
+/* ===== 사고조사 ===== */
+.sr-report .sr-accident-summary{display:grid;grid-template-columns:repeat(4,1fr);background:var(--sr-soft);margin-bottom:16px}
+.sr-report .sr-accident-summary div{padding:14px;border-right:1px solid var(--sr-line)}
+.sr-report .sr-accident-summary div:last-child{border:0}
+.sr-report .sr-accident-summary small{display:block;color:var(--sr-muted);font-size:10px}
+.sr-report .sr-accident-summary b{font-size:13px;font-weight:500}
+.sr-report .sr-accident-copy{padding:15px 17px;background:var(--sr-red-soft);margin-bottom:16px}
+.sr-report .sr-accident-copy small{color:var(--sr-red);font-size:10px}
+.sr-report .sr-accident-copy p{margin:5px 0 0;font-size:13px;line-height:1.55}
+.sr-report .sr-before-after{display:grid;grid-template-columns:1fr 44px 1fr;gap:10px;align-items:center}
+.sr-report .sr-arrow{text-align:center;color:var(--sr-navy);font-size:26px}
+.sr-report .sr-action-note{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.sr-report .sr-action-note div{padding:13px;background:var(--sr-soft)}
+.sr-report .sr-action-note small{display:block;color:var(--sr-muted);font-size:10px}
+.sr-report .sr-action-note b{font-size:12px;font-weight:500;line-height:1.5}
+
+/* ===== 사진 ===== */
+/* 실제 사진은 object-fit:contain — 현장사진은 위험요인이 가장자리에 있을 수 있어 잘라내면 증빙 가치가 떨어진다. */
+.sr-report .sr-photo{height:200px;background:linear-gradient(145deg,#d8d9dc,#f0f1f2);display:grid;place-items:center;color:#7b7e84;font-size:12px;position:relative;overflow:hidden;text-align:center;padding:12px}
+.sr-report .sr-photo:after{content:attr(data-label);position:absolute;left:10px;bottom:10px;padding:5px 8px;background:rgba(39,41,45,.76);color:#fff;font-size:10px;z-index:2}
+.sr-report .sr-photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;background:#eceff3}
+.sr-report .sr-photo .sr-more{position:absolute;right:10px;bottom:10px;padding:4px 9px;border-radius:999px;background:rgba(39,41,45,.82);color:#fff;font-size:10px;z-index:3}
+/* 사진이 없는 항목은 점선 안내 박스로 자리를 유지한다(요구사항). */
+.sr-report .sr-photo.empty{background:repeating-linear-gradient(135deg,#e8eaee,#e8eaee 9px,#f2f3f5 9px,#f2f3f5 18px);border:2px dashed #b9bec6;color:#82868e}
+
+/* ===== 작업유형 카드 (항목별 위험등급 + 사진) =====
+   표 대신 카드로 둔 이유: 사진을 항목 안에 함께 넣어야 하고,
+   페이지를 나눌 때 한 항목이 두 장에 걸쳐 쪼개지지 않아야 한다. */
+.sr-report .sr-wcard{padding:13px 15px;margin-bottom:9px;background:var(--sr-soft);border-left:4px solid var(--sr-line)}
+.sr-report .sr-wcard.risk{border-left-color:var(--sr-red);background:var(--sr-red-soft)}
+.sr-report .sr-wcard.warn{border-left-color:var(--sr-orange)}
+.sr-report .sr-wcard.good{border-left-color:var(--sr-green)}
+.sr-report .sr-wcard.none{opacity:.62}
+.sr-report .sr-wcard-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sr-report .sr-wcard-head b{font-size:14px;font-weight:500}
+.sr-report .sr-wgrade{flex:none;padding:4px 11px;border-radius:999px;font-size:10px;background:var(--sr-line);color:var(--sr-muted)}
+.sr-report .sr-wgrade.risk{background:var(--sr-red);color:#fff}
+.sr-report .sr-wgrade.warn{background:var(--sr-orange);color:#fff}
+.sr-report .sr-wgrade.good{background:var(--sr-green-soft);color:var(--sr-green)}
+.sr-report .sr-wcard-cat{margin:3px 0 0;font-size:9px;color:var(--sr-red);letter-spacing:.04em}
+.sr-report .sr-wcard-note{margin:6px 0 0;font-size:12px;line-height:1.5}
+.sr-report .sr-wcard-fix{margin:5px 0 0;padding:7px 9px;background:var(--sr-paper);border-left:2px solid var(--sr-navy);font-size:10px;line-height:1.5}
+.sr-report .sr-wcard-fix b{font-weight:500;color:var(--sr-navy)}
+.sr-report .sr-wcard-why{margin:4px 0 0;font-size:10px;line-height:1.45;color:var(--sr-muted)}
+.sr-report .sr-wcard-facts{margin:4px 0 0;font-size:9px;line-height:1.45;color:var(--sr-muted)}
+.sr-report .sr-wcard .sr-hazards{margin-top:6px}
+.sr-report .sr-wcard-photos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:9px}
+.sr-report .sr-wcard-photos .sr-photo{height:132px}
+/* 작업점검 종합(섹션 끝 키포인트) */
+.sr-report .sr-wsum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.sr-report .sr-wsum>div{padding:11px 13px;background:var(--sr-soft);border-top:3px solid var(--sr-line)}
+.sr-report .sr-wsum>div.risk{border-top-color:var(--sr-red)}
+.sr-report .sr-wsum>div.warn{border-top-color:var(--sr-orange)}
+.sr-report .sr-wsum small{display:block;font-size:9px;color:var(--sr-muted)}
+.sr-report .sr-wsum b{display:block;margin-top:5px;font-size:12px;font-weight:500;line-height:1.45}
+
+/* ===== 상세결과 표 ===== */
+.sr-report .sr-findings{width:100%;border-collapse:collapse}
+.sr-report .sr-findings th{text-align:left;color:var(--sr-muted);font-size:10px;font-weight:400;padding:10px;border-bottom:2px solid var(--sr-ink)}
+.sr-report .sr-findings td{font-size:12px;padding:13px 10px;border-bottom:1px solid var(--sr-line);vertical-align:top;line-height:1.55}
+.sr-report .sr-findings td:first-child{font-weight:500}
+.sr-report .sr-findings .sr-sub{color:var(--sr-muted);margin-top:4px;font-weight:400}
+.sr-report .sr-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--sr-red);margin-right:6px}
+.sr-report .sr-dot.good{background:var(--sr-green)}
+.sr-report .sr-dot.warn{background:var(--sr-orange)}
+
+/* 관련 재해유형 알약 */
+.sr-report .sr-hazards{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+.sr-report .sr-haz{border:1px solid var(--sr-line);border-radius:999px;padding:3px 8px;font-size:10px;color:var(--sr-muted);background:var(--sr-paper)}
+
+/* ===== 사진증빙 ===== */
+.sr-report .sr-evidence{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.sr-report .sr-evidence figure{margin:0}
+.sr-report .sr-evidence figcaption{padding:8px 2px;color:var(--sr-muted);font-size:10px}
+.sr-report .sr-evidence figcaption b{display:block;color:var(--sr-ink);font-size:12px;font-weight:500}
+
+/* ===== 근로자 의견 ===== */
+.sr-report .sr-voice{padding:12px 0;border-top:1px solid var(--sr-line)}
+.sr-report .sr-voice:first-of-type{border-top:0}
+.sr-report .sr-voice small{display:block;color:var(--sr-muted);font-size:10px}
+.sr-report .sr-voice p{margin:4px 0 0;font-size:12px;line-height:1.55}
+.sr-report .sr-voice strong{color:var(--sr-red);font-weight:500}
+
+/* ===== 강조 안내 박스 ===== */
+.sr-report .sr-note{margin-top:14px;padding:13px 15px;background:var(--sr-red-soft);font-size:12px;line-height:1.6}
+.sr-report .sr-note b{font-weight:500}
+.sr-report .sr-note.info{background:var(--sr-soft)}
+
+/* ===== 사다리 보유현황 ===== */
+.sr-report .sr-ladder{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:12px}
+.sr-report .sr-ladder div{padding:13px;background:var(--sr-soft);border-bottom:2px solid var(--sr-line)}
+.sr-report .sr-ladder div.bad{border-color:var(--sr-red)}
+.sr-report .sr-ladder div.off{opacity:.55}
+.sr-report .sr-ladder small{display:block;color:var(--sr-muted);font-size:10px}
+.sr-report .sr-ladder b{font-size:18px;font-weight:500}
+.sr-report .sr-ladder i{font-style:normal;font-size:10px;color:var(--sr-muted)}
+
+/* ===== 통합형 1페이지 표지 =====
+   점검동선·작업유형·위험분석·분야별 결과와 미흡사진을 한 장에 요약한다. */
+.sr-report .sr-cover-dashboard .sr-cover-head{min-height:142px;padding:22px 32px;background:linear-gradient(135deg,#0e1c46,var(--sr-navy-2));border-bottom:5px solid var(--sr-red)}
+.sr-report .sr-cover-dashboard .sr-cover-head h1{font-size:26px;margin:15px 0 4px}
+.sr-report .sr-cover-dashboard .sr-meta{left:auto;right:32px;bottom:22px;display:grid;text-align:right;gap:2px}
+.sr-report .sr-cover-dashboard .sr-body{padding:16px 28px 24px}
+.sr-report .sr-dash-summary{display:grid;grid-template-columns:130px 1fr repeat(4,85px);gap:8px;align-items:stretch}
+.sr-report .sr-dash-score{padding:13px;background:var(--sr-navy);color:#fff;border-radius:14px}
+.sr-report .sr-dash-score small{font-size:9px;opacity:.72}.sr-report .sr-dash-score b{display:block;margin:5px 0;font-size:19px;font-weight:500}.sr-report .sr-dash-score span{font-size:9px;opacity:.82}
+.sr-report .sr-dash-verdict{padding:12px 14px;background:var(--sr-soft);border-left:4px solid var(--sr-red)}
+.sr-report .sr-dash-verdict small{font-size:8px;color:var(--sr-red);letter-spacing:.08em}.sr-report .sr-dash-verdict b{display:block;font-size:14px;margin:4px 0;font-weight:500}.sr-report .sr-dash-verdict p{margin:0;font-size:9px;line-height:1.45;color:var(--sr-muted)}
+.sr-report .sr-dash-metric{padding:12px 9px;background:var(--sr-soft);border-bottom:2px solid var(--sr-line)}.sr-report .sr-dash-metric.bad{border-color:var(--sr-red)}
+.sr-report .sr-dash-metric small{display:block;font-size:8px;color:var(--sr-muted)}.sr-report .sr-dash-metric b{font-size:19px;font-weight:500}.sr-report .sr-dash-metric span{font-size:8px;color:var(--sr-muted)}
+.sr-report .sr-dashboard-grid{display:grid;grid-template-columns:1.08fr .92fr;gap:14px;margin-top:13px}.sr-report .sr-dashboard-panel{min-width:0}
+.sr-report .sr-dashboard-title{display:flex;align-items:flex-end;justify-content:space-between;margin:0 0 7px;padding-bottom:5px;border-bottom:2px solid var(--sr-navy)}
+.sr-report .sr-dashboard-title small{color:var(--sr-red);font-size:8px;letter-spacing:.08em}.sr-report .sr-dashboard-title b{display:block;font-size:13px;font-weight:500}.sr-report .sr-dashboard-title span{font-size:8px;color:var(--sr-muted)}
+.sr-report .sr-mini-route{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:11px}.sr-report .sr-mini-step{text-align:center;padding:5px 2px;background:var(--sr-soft);border-top:3px solid var(--sr-red)}
+.sr-report .sr-mini-step.good{border-color:var(--sr-green)}.sr-report .sr-mini-step.watch{border-color:var(--sr-orange)}.sr-report .sr-mini-step b{display:block;font-size:9px;font-weight:500}.sr-report .sr-mini-step small{font-size:7px;color:var(--sr-muted)}
+.sr-report .sr-work-grid{display:grid;grid-template-columns:1fr 1fr;gap:3px 8px}.sr-report .sr-work-row{display:grid;grid-template-columns:19px 1fr auto;gap:5px;align-items:center;padding:4px 0;border-bottom:1px solid var(--sr-line)}
+.sr-report .sr-work-row i{font-style:normal;font-size:7px;color:var(--sr-muted)}.sr-report .sr-work-row b{font-size:8px;font-weight:500}.sr-report .sr-work-row span{font-size:7px;color:var(--sr-green)}.sr-report .sr-work-row.bad span{color:var(--sr-red)}.sr-report .sr-work-row.na span{color:var(--sr-muted)}
+.sr-report .sr-priority-photo-list{display:grid;gap:6px}.sr-report .sr-priority-photo{display:grid;grid-template-columns:78px 1fr auto;gap:8px;align-items:center;background:var(--sr-soft);padding:6px}
+.sr-report .sr-priority-photo .sr-photo{height:54px;aspect-ratio:auto;font-size:8px}.sr-report .sr-priority-photo .sr-photo:after{left:4px;bottom:4px;padding:2px 4px;font-size:6px}.sr-report .sr-priority-photo .sr-more{font-size:8px;padding:2px 4px}
+.sr-report .sr-priority-photo b{display:block;font-size:9px;font-weight:500}.sr-report .sr-priority-photo small{display:block;margin-top:2px;font-size:7px;color:var(--sr-muted)}.sr-report .sr-priority-photo .sr-status{font-size:7px;padding:3px 5px}
+.sr-report .sr-field-summary{display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;margin-top:10px}.sr-report .sr-field-row{display:flex;justify-content:space-between;gap:5px;padding:5px 0;border-bottom:1px solid var(--sr-line);font-size:8px}
+.sr-report .sr-field-row b{font-weight:500}.sr-report .sr-field-row span{color:var(--sr-red);text-align:right}.sr-report .sr-field-row.good span{color:var(--sr-green)}.sr-report .sr-field-row.watch span{color:var(--sr-orange)}
+.sr-report .sr-priority-title{margin-top:11px}
+.sr-report .sr-cover-risk-note{margin-top:10px;padding:13px 15px;background:linear-gradient(135deg,#eef2f9,#f7f8fb);border-left:4px solid var(--sr-navy)}
+/* 이 박스는 배경을 밝은 색으로 직접 지정했으므로 글자색도 변수를 쓰지 않고 함께 고정한다.
+   변수(--sr-ink 등)를 쓰면 다크모드에서 글자가 밝아져 밝은 배경 위에서 보이지 않는다. */
+.sr-report .sr-cover-risk-note small{display:block;font-size:8px;color:#e60033;letter-spacing:.08em}.sr-report .sr-cover-risk-note b{display:block;margin:4px 0;font-size:15px;font-weight:500;line-height:1.28;color:#13245a}.sr-report .sr-cover-risk-note p{margin:0;font-size:8px;line-height:1.5;color:#5a616e}
+.sr-report .sr-cover-facts{display:grid;gap:4px;margin-top:9px;padding:10px 12px;border:1px solid var(--sr-line);font-size:8px}.sr-report .sr-cover-facts b{font-size:9px;font-weight:500;color:var(--sr-navy)}.sr-report .sr-cover-facts span{color:var(--sr-muted)}
+
+.sr-report .sr-footer{display:flex;justify-content:space-between;margin-top:24px;padding-top:12px;border-top:1px solid var(--sr-line);color:var(--sr-muted);font-size:9px}
+
+/* 데이터를 못 불러왔을 때 */
+.sr-report .sr-empty-live{max-width:620px;margin:80px auto;padding:38px;background:var(--sr-paper);border-left:8px solid var(--sr-red);box-shadow:0 16px 40px rgba(0,0,0,.13)}
+.sr-report .sr-empty-live b{display:block;font-size:18px}
+.sr-report .sr-empty-live small{display:block;margin-top:10px;color:var(--sr-muted);line-height:1.6}
+
+/* ============================================================
+   모바일 (화면 보기 전용)
+   PDF 캡처에는 영향이 없어야 하므로 아래 .sr-capture 블록이 이 규칙을 되돌린다.
+   ============================================================ */
+@media(max-width:900px){
+ .sr-report{padding:10px}
+ .sr-report .sr-sheet{width:100%;min-height:auto}
+ .sr-report .sr-cover-head,.sr-report .sr-body,.sr-report .sr-page-head{padding-left:20px;padding-right:20px}
+ .sr-report .sr-score-row{grid-template-columns:1fr}
+ .sr-report .sr-metrics{grid-template-columns:1fr 1fr}
+ .sr-report .sr-risk-grid{grid-template-columns:1fr}
+ .sr-report .sr-accident-summary{grid-template-columns:1fr 1fr}
+ .sr-report .sr-before-after{grid-template-columns:1fr}
+ .sr-report .sr-arrow{transform:rotate(90deg)}
+ .sr-report .sr-evidence{grid-template-columns:1fr}
+ .sr-report .sr-ladder{grid-template-columns:1fr 1fr}
+ .sr-report .sr-action-note{grid-template-columns:1fr}
+ .sr-report .sr-meta{position:static;margin-top:30px}
+ .sr-report .sr-photo{height:230px}
+ .sr-report .sr-dash-summary{grid-template-columns:1fr 1fr}.sr-report .sr-dash-verdict{grid-column:span 2}
+ .sr-report .sr-dashboard-grid{grid-template-columns:1fr}.sr-report .sr-cover-dashboard .sr-meta{position:static;text-align:left}
+}
+
+/* ============================================================
+   PDF 캡처 전용 (.sr-capture)
+   위 @media는 "화면 너비" 기준이라, 휴대폰에서 제출하면 화면 밖 캡처용
+   1240px 레이아웃에도 모바일 규칙이 적용돼 세로로 길어진 PDF가 나온다.
+   .sr-capture 자손 선택자는 미디어쿼리보다 우선순위가 높아 데스크톱 값을 되돌린다.
+   또한 화면에서는 .active 한 장만 보이지만, 캡처에서는 전부 펼쳐야 한다.
+   ============================================================ */
+.sr-capture{padding:0}
+.sr-capture .sr-sheet{display:block;width:1240px;max-width:none;height:880px;min-height:880px;margin:0;box-shadow:none;overflow:hidden}
+.sr-capture .sr-toolbar{display:none}
+.sr-capture .sr-cover-head,.sr-capture .sr-body{padding-left:38px;padding-right:38px}
+.sr-capture .sr-page-head{padding-left:38px;padding-right:38px}
+.sr-capture .sr-score-row{grid-template-columns:200px 1fr}
+.sr-capture .sr-metrics{grid-template-columns:repeat(4,1fr)}
+.sr-capture .sr-risk-grid{grid-template-columns:repeat(3,1fr)}
+.sr-capture .sr-accident-summary{grid-template-columns:repeat(4,1fr)}
+.sr-capture .sr-before-after{grid-template-columns:1fr 44px 1fr}
+.sr-capture .sr-arrow{transform:none}
+.sr-capture .sr-evidence{grid-template-columns:1fr 1fr}
+.sr-capture .sr-ladder{grid-template-columns:repeat(5,1fr)}
+.sr-capture .sr-action-note{grid-template-columns:1fr 1fr}
+.sr-capture .sr-meta{position:absolute;margin-top:0}
+.sr-capture .sr-photo{height:200px}
+
+/* ============================================================
+   인쇄 / PDF 저장
+   1) @page size: A4 가로. 임의 mm 크기를 주면 드라이버가 무시하고 A4 세로로 찍는 사례가 있었다.
+   2) print-color-adjust:exact: 지정하지 않으면 브라우저가 배경색을 지워 붉은 표지가 흰색이 된다.
+   3) 화면에서는 한 장만 보이므로, 인쇄할 때는 전부 펼치고 장마다 페이지를 나눈다.
+   ============================================================ */
+@page{ size:A4 landscape; margin:0 }
+@media print{
+ html,body{background:#fff;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ .sr-report{padding:0}
+ .sr-report .sr-toolbar{display:none}
+ .sr-report .sr-sheet{display:block;width:297mm;height:210mm;min-height:0;max-width:none;margin:0;box-shadow:none;overflow:hidden;break-after:page;page-break-after:always}
+ .sr-report .sr-sheet:last-child{break-after:auto;page-break-after:auto}
+ .sr-report .sr-cover-head,.sr-report .sr-body{padding-left:12mm;padding-right:12mm}
+ .sr-report .sr-page-head{padding-left:12mm;padding-right:12mm}
+ .sr-report .sr-score-row{grid-template-columns:200px 1fr}
+ .sr-report .sr-metrics{grid-template-columns:repeat(4,1fr)}
+ .sr-report .sr-risk-grid{grid-template-columns:repeat(3,1fr)}
+ .sr-report .sr-accident-summary{grid-template-columns:repeat(4,1fr)}
+ .sr-report .sr-before-after{grid-template-columns:1fr 44px 1fr}
+ .sr-report .sr-arrow{transform:none}
+ .sr-report .sr-evidence{grid-template-columns:1fr 1fr}
+ .sr-report .sr-ladder{grid-template-columns:repeat(5,1fr)}
+ .sr-report .sr-action-note{grid-template-columns:1fr 1fr}
+ .sr-report .sr-meta{position:absolute;margin-top:0}
+ .sr-report .sr-photo{height:44mm}
+ .sr-report .sr-risk-card,.sr-report .sr-priority,.sr-report .sr-voice,
+ .sr-report .sr-evidence figure,.sr-report .sr-photo{break-inside:avoid;page-break-inside:avoid}
+}
+
+/* ===== 다크모드 (화면 보기 전용. 인쇄/캡처는 항상 라이트) =====
+   .sr-capture(PDF 캡처용 컨테이너)는 반드시 제외한다.
+   이 예외가 없으면 점검자 기기가 다크모드일 때 결과보고서 PDF가 검은 배경으로 저장된다.
+   PDF는 인쇄·공유하는 공식 문서라 기기 설정과 무관하게 항상 흰 배경이어야 한다.
+   (html2canvas는 화면에 적용된 스타일을 그대로 캡처하므로 @media print로는 막을 수 없다) */
+@media(prefers-color-scheme:dark){
+ body{background:#16181c}
+ .sr-report:not(.sr-capture){
+   --sr-navy:#6f8ee8; --sr-navy-2:#203a7a; --sr-navy-soft:#202b48;
+   --sr-red:#ff496f; --sr-red-soft:#35151d;
+   --sr-ink:#f5f5f6; --sr-muted:#aeb2ba; --sr-line:#3b3e45;
+   --sr-paper:#202227; --sr-soft:#292c32;
+   --sr-green:#4fc993; --sr-green-soft:#17382b;
+   --sr-orange:#f2a640; --sr-orange-soft:#3a2a12;
+ }
+ .sr-report:not(.sr-capture) .sr-score{background:#0f1114}
+}
+
+/* ============================================================
+   시안D 확정흐름 구조 (2026-09 대개편)
+
+   흐름: 표지 → 목차 → [챕터구분장 → 상세…] × 전 분야 → 조치계획
+   규칙 (사용자 확정, 변경 금지)
+     · 모든 챕터는 스킵 없음. 미흡 0건이면 구분장 + "양호" 한 줄만 남기고 상세는 만들지 않는다.
+     · 예외: 사다리·사고조사는 미흡/이력 0건이어도 보유현황·이력요약을 항상 노출한다.
+     · 상세는 2문항/페이지 고정. 짝수는 좌우 반반 + 가운데 주름선.
+       홀수로 1개만 남으면 왼쪽정렬 금지 → 가운데정렬 + 사진 확대.
+     · 여백 금지: 페이지 높이(880px)가 남으면 사진 영역이 flex로 늘어나 채운다.
+   ============================================================ */
+
+/* ---------- 공통: 한 장을 세로 flex로 잡아 남는 높이를 내용이 흡수하게 한다 ---------- */
+.sr-report .sr-page{display:flex;flex-direction:column;height:880px;min-height:880px;overflow:hidden}
+.sr-report .sr-page>.sr-body{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.sr-report .sr-page .sr-footer{margin-top:auto}
+
+/* ---------- 표지 ---------- */
+.sr-report .sr-cover2{height:880px;min-height:880px;display:flex;flex-direction:column;padding:64px 60px 44px;position:relative;overflow:hidden;background:var(--sr-paper)}
+.sr-report .sr-cover2:before{content:"";position:absolute;left:0;top:0;bottom:0;width:14px;background:var(--sr-red)}
+.sr-report .sr-cover2-kicker{font-size:11px;letter-spacing:.16em;color:var(--sr-muted)}
+.sr-report .sr-cover2 h1{font-size:42px;margin:18px 0 0;font-weight:500;line-height:1.24;color:var(--sr-ink)}
+.sr-report .sr-cover2-sub{margin:14px 0 0;font-size:13px;color:var(--sr-muted)}
+.sr-report .sr-cover2-rule{height:5px;background:var(--sr-red);width:100%;margin:28px 0 0}
+.sr-report .sr-cover2-verdict{margin-top:34px;padding:22px 26px;background:var(--sr-ink);color:#fff;border-radius:16px;max-width:760px}
+.sr-report .sr-cover2-verdict small{font-size:10px;letter-spacing:.1em;opacity:.6}
+.sr-report .sr-cover2-verdict b{display:block;margin:9px 0 0;font-size:26px;font-weight:500;line-height:1.3}
+.sr-report .sr-cover2-verdict p{margin:11px 0 0;font-size:12.5px;line-height:1.7;opacity:.9}
+.sr-report .sr-cover2-meta{display:flex;gap:34px;margin-top:auto;flex-wrap:wrap}
+.sr-report .sr-cover2-meta div{font-size:11px;color:var(--sr-muted)}
+.sr-report .sr-cover2-meta b{display:block;font-size:15px;color:var(--sr-ink);margin-top:5px;font-weight:500}
+
+/* ---------- 목차 ---------- */
+.sr-report .sr-toc{display:flex;height:880px;min-height:880px;overflow:hidden}
+.sr-report .sr-toc-side{width:150px;flex:none;background:var(--sr-red)}
+.sr-report .sr-toc-main{flex:1;min-width:0;padding:70px 60px;display:flex;flex-direction:column}
+.sr-report .sr-toc-main .sr-cover2-kicker{margin-bottom:0}
+.sr-report .sr-toc-main h1{font-size:34px;margin:12px 0 30px;font-weight:500}
+.sr-report .sr-toc-list{display:grid;grid-template-columns:1fr 1fr;gap:6px 50px;align-content:start}
+.sr-report .sr-toc-row{display:flex;align-items:baseline;gap:14px;font-size:15px;font-weight:500;padding:11px 0;border-bottom:1px solid var(--sr-line)}
+.sr-report .sr-toc-row i{font-style:normal;color:var(--sr-muted);font-size:12.5px;font-weight:500;width:26px;flex:none}
+.sr-report .sr-toc-row span{flex:1;min-width:0}
+.sr-report .sr-toc-row em{font-style:normal;font-size:10.5px;color:var(--sr-muted);flex:none}
+.sr-report .sr-toc-row em.bad{color:var(--sr-red)}
+.sr-report .sr-toc-row em.good{color:var(--sr-green)}
+.sr-report .sr-toc-foot{margin-top:auto;padding-top:20px;font-size:10.5px;color:var(--sr-muted);line-height:1.7}
+
+/* ---------- 챕터 구분장 ---------- */
+.sr-report .sr-chapter{display:flex;height:880px;min-height:880px;overflow:hidden}
+.sr-report .sr-chapter-side{width:150px;flex:none;background:var(--sr-red);position:relative}
+.sr-report .sr-chapter-side b{position:absolute;left:0;right:0;bottom:34px;text-align:center;color:#fff;font-size:44px;font-weight:500;opacity:.5}
+.sr-report .sr-chapter-main{flex:1;min-width:0;padding:80px 60px 44px;display:flex;flex-direction:column}
+.sr-report .sr-chapter-main small{font-size:11px;letter-spacing:.16em;color:var(--sr-muted)}
+.sr-report .sr-chapter-main h1{font-size:38px;margin:12px 0 0;font-weight:500}
+.sr-report .sr-chapter-rule{height:3px;background:var(--sr-ink);width:180px;margin:24px 0 32px;flex:none}
+.sr-report .sr-chapter-sub{display:grid;grid-template-columns:1fr 1fr;gap:10px 50px;align-content:start}
+.sr-report .sr-chapter-sub div{display:flex;align-items:baseline;gap:13px;font-size:14px;font-weight:500}
+.sr-report .sr-chapter-sub i{font-style:normal;color:var(--sr-muted);font-size:12px;font-weight:500;width:24px;flex:none}
+.sr-report .sr-chapter-sub span{flex:1;min-width:0}
+.sr-report .sr-chapter-sub em{font-style:normal;font-size:10px;flex:none;padding:2px 8px;border-radius:999px;background:var(--sr-green-soft);color:var(--sr-green)}
+.sr-report .sr-chapter-sub em.bad{background:var(--sr-red-soft);color:var(--sr-red)}
+.sr-report .sr-chapter-sub em.na{background:var(--sr-line);color:var(--sr-muted)}
+/* 구분장에는 숫자 카드박스·규칙 설명문을 넣지 않는다(사용자 확정).
+   챕터 제목 + 하위목차만 남기고, 관련 클래스(.sr-chapter-note/-good/-count)는 없앴다. */
+.sr-report .sr-chapter-foot{margin-top:auto;font-size:10px;color:var(--sr-muted)}
+
+/* ---------- 사이드바형 상세 (작업점검·시설·소방·TBM·의견·조치확인 공통) ---------- */
+.sr-report .sr-detail{display:flex;height:880px;min-height:880px;overflow:hidden}
+.sr-report .sr-side{width:268px;flex:none;background:var(--sr-soft);border-right:1px solid var(--sr-line);padding:22px 16px;overflow:hidden;display:flex;flex-direction:column}
+.sr-report .sr-side-head{font-size:9.5px;letter-spacing:.08em;color:var(--sr-muted);margin-bottom:11px;line-height:1.5}
+.sr-report .sr-side-head b{display:block;font-size:12px;letter-spacing:0;color:var(--sr-ink);font-weight:500;margin-top:3px}
+.sr-report .sr-side-item{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:8px 10px;border-radius:8px;margin-bottom:4px;font-size:11px;line-height:1.45;background:var(--sr-paper)}
+.sr-report .sr-side-item.on{background:var(--sr-navy);color:#fff}
+.sr-report .sr-side-item.na{opacity:.55}
+.sr-report .sr-side-item span{flex:1;min-width:0}
+.sr-report .sr-side-item i{flex:none;font-style:normal;font-size:9px;font-weight:500;padding:2px 7px;border-radius:999px;background:var(--sr-green-soft);color:var(--sr-green)}
+.sr-report .sr-side-item i.bad{background:var(--sr-red-soft);color:var(--sr-red)}
+.sr-report .sr-side-item i.na{background:var(--sr-line);color:var(--sr-muted)}
+.sr-report .sr-side-item.on i{background:rgba(255,255,255,.22);color:#fff}
+.sr-report .sr-side-foot{margin-top:auto;padding-top:12px;font-size:9px;color:var(--sr-muted);line-height:1.6}
+.sr-report .sr-side-more{padding:7px 10px;font-size:9.5px;color:var(--sr-muted)}
+
+.sr-report .sr-main{flex:1;min-width:0;padding:24px 30px 22px;display:flex;flex-direction:column}
+.sr-report .sr-main-head{padding-bottom:9px;border-bottom:2px solid var(--sr-ink);margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex:none}
+.sr-report .sr-main-head small{color:var(--sr-red);font-size:9.5px;letter-spacing:.1em}
+.sr-report .sr-main-head h2{margin:4px 0 0;font-size:19px;font-weight:500}
+.sr-report .sr-main-head .sr-page-no{font-size:10.5px}
+.sr-report .sr-main-lead{flex:none;margin:0 0 12px;padding:11px 14px;background:var(--sr-soft);border-left:3px solid var(--sr-navy);font-size:11px;line-height:1.6}
+.sr-report .sr-main-lead b{font-weight:500;color:var(--sr-navy)}
+
+/* 2문항/페이지 · 가운데 주름선 */
+.sr-report .sr-split2{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:0;position:relative}
+.sr-report .sr-split2:before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:repeating-linear-gradient(to bottom,var(--sr-line) 0,var(--sr-line) 5px,transparent 5px,transparent 10px)}
+/* 단독 페이지는 2열 격자를 쓰지 않는다. 1열로 펼쳐야 사진이 페이지 가운데에 온다. */
+.sr-report .sr-split2.one{grid-template-columns:1fr}
+.sr-report .sr-split2.one:before{display:none}
+.sr-report .sr-qcol{padding:0 20px;min-width:0;display:flex;flex-direction:column}
+.sr-report .sr-qcol:first-child{padding-left:0}
+.sr-report .sr-qcol:last-child{padding-right:0}
+.sr-report .sr-qnum{flex:none;font-size:10px;color:var(--sr-muted);font-weight:500;margin-bottom:3px}
+.sr-report .sr-qtitle{flex:none;font-size:14px;font-weight:500;margin:0 0 4px;line-height:1.4}
+.sr-report .sr-qanswer{flex:none;font-size:11.5px;color:var(--sr-red);font-weight:500;margin:0 0 5px;line-height:1.5}
+.sr-report .sr-qanswer.good{color:var(--sr-green)}
+.sr-report .sr-qmeta{flex:none;font-size:9.5px;color:var(--sr-muted);margin:0 0 9px;line-height:1.5}
+/* 사진이 남는 높이를 전부 흡수한다 → 페이지 아래 여백이 생기지 않는다 */
+.sr-report .sr-qphoto{flex:1 1 auto;min-height:150px;margin-bottom:11px}
+.sr-report .sr-qphoto .sr-photo{height:100%;min-height:150px}
+.sr-report .sr-qcol .sr-hazards{flex:none;margin:0 0 9px}
+/* 위험요인에 관한 해결방안.
+   1안/2안/3안이 여러 개면(.multi) flex-wrap 으로 흘려 담는다.
+   문구가 짧으면 한 줄에 가로로 붙고, 길면 줄바꿈되어 아래로 쌓인다.
+   («무조건 한 줄»로 고정하면 긴 문구에서 글자가 뭉개지므로 일부러 흘려 담는다) */
+.sr-report .sr-fix{flex:none;background:var(--sr-soft);border-radius:8px;padding:11px 13px}
+.sr-report .sr-fix-title{font-size:10px;font-weight:500;color:var(--sr-ink);margin-bottom:7px;letter-spacing:.02em}
+.sr-report .sr-fix-opt{font-size:10.5px;line-height:1.55;margin-bottom:5px;padding-left:30px;position:relative}
+.sr-report .sr-fix-opt:last-child{margin-bottom:0}
+.sr-report .sr-fix-opt:before{content:attr(data-n);position:absolute;left:0;top:0;font-weight:500;color:var(--sr-navy);font-size:10px}
+.sr-report .sr-fix.multi .sr-fix-opts{display:flex;flex-wrap:wrap;gap:6px 26px}
+.sr-report .sr-fix.multi .sr-fix-opt{margin-bottom:0;padding-left:32px}
+.sr-report .sr-solo .sr-fix{padding:12px 15px}
+.sr-report .sr-solo .sr-fix-title{font-size:11px}
+.sr-report .sr-solo .sr-fix-opt{font-size:11.5px}
+
+/* 홀수로 1개만 남을 때 (단독 페이지)
+   «가운데 정렬»은 사진에만 적용한다. 대제목·문항·지적사항·해결방안은 왼쪽에 그대로 둔다.
+   (사용자 확정: 글까지 가운데로 모으면 읽는 순서가 흐트러진다) */
+.sr-report .sr-solo{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;width:100%;text-align:left}
+.sr-report .sr-solo-head{flex:none}
+.sr-report .sr-solo-main{margin:0 0 7px;font-size:19px;font-weight:500;line-height:1.35}
+.sr-report .sr-solo-q{margin:0 0 3px;font-size:14px;color:var(--sr-muted);line-height:1.5}
+.sr-report .sr-solo .sr-qanswer{margin:0;font-size:15px;font-weight:500}
+.sr-report .sr-solo .sr-qmeta{margin:5px 0 0;font-size:10.5px}
+/* 사진만 가운데. 남는 높이를 전부 흡수해 아래 여백이 생기지 않는다. */
+.sr-report .sr-solo-photo{flex:1 1 auto;min-height:240px;width:58%;align-self:center;margin:14px auto 12px}
+.sr-report .sr-solo-photo .sr-photo{height:100%;min-height:240px}
+.sr-report .sr-solo-foot{flex:none}
+.sr-report .sr-solo-foot .sr-hazards{margin:0 0 8px}
+
+/* ---------- 요약본 ---------- */
+.sr-report .sr-sum-box{display:grid;grid-template-columns:290px 1fr;gap:16px;flex:none}
+.sr-report .sr-sum-black{background:var(--sr-ink);color:#fff;border-radius:14px;padding:20px 22px}
+.sr-report .sr-sum-black small{display:block;opacity:.6;font-size:10px;letter-spacing:.08em}
+.sr-report .sr-sum-black b{display:block;margin-top:9px;font-size:26px;font-weight:500;line-height:1.25}
+.sr-report .sr-sum-black span{display:block;margin-top:8px;font-size:11px;opacity:.82;line-height:1.6}
+.sr-report .sr-sum-black p{margin:9px 0 0;font-size:12px;line-height:1.75;opacity:.92}
+.sr-report .sr-sum-title{font-size:13.5px;font-weight:500;margin:14px 0 7px;display:flex;align-items:center;gap:9px;flex:none}
+.sr-report .sr-sum-title em{font-style:normal;background:var(--sr-red);color:#fff;font-size:9.5px;padding:3px 9px;border-radius:999px}
+.sr-report .sr-sum-rows{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+/* 조치계획을 다음 장으로 떼어냈으므로 이 표가 페이지 높이를 거의 전부 쓴다.
+   한 행이 눌려 보이던 문제(사용자 지적: «칸이 좁다»)를 줄이려고 세로 여백과 줄간격을 키웠다. */
+.sr-report .sr-sum-row{flex:1 1 0;min-height:0;display:grid;grid-template-columns:112px 1fr 74px 116px;gap:12px;align-items:center;padding:9px 0;border-top:1px solid var(--sr-line)}
+.sr-report .sr-sum-row:first-child{border-top:0}
+.sr-report .sr-sum-row>b{font-size:13px;font-weight:500}
+.sr-report .sr-sum-row>span{font-size:11.5px;color:var(--sr-muted);line-height:1.6}
+.sr-report .sr-sum-row .sr-cnt{text-align:center;font-weight:500;font-size:15px}
+.sr-report .sr-sum-row.bad .sr-cnt{color:var(--sr-red)}
+.sr-report .sr-sum-row.good .sr-cnt{color:var(--sr-green)}
+.sr-report .sr-sum-row .sr-photo{height:100%;min-height:48px;font-size:9px;padding:0}
+/* 요약표 썸네일만 object-fit:cover.
+   항목 카드의 큰 사진은 증빙이라 contain(안 자름)이 맞지만, 이 칸은 116×48 정도의
+   «대표사진 표식»이다. contain으로 두면 사진 좌우에 회색 여백만 보여 비어 보인다. */
+.sr-report .sr-sum-row .sr-photo img{object-fit:cover;background:none}
+/* 라벨(분야명)은 숨긴다. 같은 행 왼쪽에 분야명이 이미 굵게 적혀 있어 중복이고,
+   이 크기에서는 라벨이 사진을 거의 다 덮는다. */
+.sr-report .sr-sum-row .sr-photo:after{display:none}
+/* 사진이 없는 행(양호·미보유)에는 점선 빈칸을 두지 않는다.
+   점선 칸이 남아 있으면 «사진을 넣어야 하는데 비워둔 자리»로 보인다(사용자 지적). */
+.sr-report .sr-sum-nophoto{display:grid;place-items:center;height:100%;color:#c9ccd2;font-size:12px;letter-spacing:.1em}
+
+/* ---------- 사다리 보유현황 (항상 노출) ----------
+   유형별 카드 안에 그 유형의 현장사진을 함께 넣는다(어떤 사다리인지 사진으로 바로 대조). */
+.sr-report .sr-ladder2{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;flex:none}
+.sr-report .sr-ladder2>div{background:var(--sr-soft);border-radius:10px;padding:12px;text-align:center;overflow:hidden}
+.sr-report .sr-ladder2 .sr-photo{height:104px;border-radius:7px;margin-bottom:9px;font-size:9.5px}
+.sr-report .sr-ladder2 .sr-photo:after{left:5px;bottom:5px;padding:2px 5px;font-size:7px}
+.sr-report .sr-ladder2>div.bad{background:var(--sr-red-soft)}
+.sr-report .sr-ladder2>div.off{opacity:.45}
+.sr-report .sr-ladder2 small{display:block;font-size:9.5px;color:var(--sr-muted);line-height:1.4}
+.sr-report .sr-ladder2 b{display:block;font-size:22px;margin:5px 0 2px;font-weight:500}
+.sr-report .sr-ladder2 i{font-style:normal;font-size:9px;color:var(--sr-muted)}
+
+/* ---------- 사고이력 요약 (항상 노출) ---------- */
+.sr-report .sr-acc-hist{display:grid;grid-template-columns:1fr 1fr;gap:10px;flex:none}
+.sr-report .sr-acc-card{background:var(--sr-soft);border-radius:10px;padding:14px 16px}
+.sr-report .sr-acc-card .sr-acc-top{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;font-weight:500;margin-bottom:6px}
+.sr-report .sr-acc-card .sr-acc-top em{font-style:normal;font-size:9.5px;padding:3px 9px;border-radius:999px;flex:none;background:var(--sr-red-soft);color:var(--sr-red)}
+.sr-report .sr-acc-card .sr-acc-top em.done{background:var(--sr-green-soft);color:var(--sr-green)}
+.sr-report .sr-acc-card .sr-acc-top em.warn{background:var(--sr-orange-soft);color:var(--sr-orange)}
+.sr-report .sr-acc-card p{margin:0;font-size:10.5px;color:var(--sr-muted);line-height:1.6}
+
+/* ---------- 조치확인 · 사고조사 상세: 전/후 사진 좌우 ---------- */
+.sr-report .sr-ba{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.sr-report .sr-ba-col{display:flex;flex-direction:column;min-width:0}
+.sr-report .sr-ba-col>small{flex:none;font-size:9.5px;color:var(--sr-muted);letter-spacing:.08em;margin-bottom:5px}
+.sr-report .sr-ba-col .sr-qphoto{margin-bottom:8px}
+.sr-report .sr-ba-col p{flex:none;margin:0;font-size:10.5px;line-height:1.6;padding:9px 11px;background:var(--sr-soft);border-radius:6px}
+
+/* ---------- 요약 페이지 히어로 (종합 진단결과 + 종합 코멘트를 하나로) ----------
+   가로로 나란한 두 블랙박스 대신 세로로 쌓아 진단결과를 크게 강조한다(사용자 확정). */
+.sr-report .sr-sum-hero{flex:none;background:var(--sr-ink);color:#fff;border-radius:14px;padding:20px 24px;margin-bottom:14px}
+.sr-report .sr-sum-hero-label{font-size:10px;letter-spacing:.1em;opacity:.6}
+.sr-report .sr-sum-hero-verdict{margin:8px 0 0;font-size:24px;font-weight:500}
+.sr-report .sr-sum-hero-verdict small{font-size:11px;font-weight:400;opacity:.75;margin-left:8px}
+.sr-report .sr-sum-hero-comment{margin:10px 0 0;font-size:12px;line-height:1.75;opacity:.92}
+
+/* ---------- 조치계획 압축형 (요약 페이지 하단에 병합) ---------- */
+.sr-report .sr-plan-mini{display:flex;flex-direction:column}
+.sr-report .sr-plan-mini-row{display:grid;grid-template-columns:26px 1fr 84px;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--sr-line);font-size:11.5px}
+.sr-report .sr-plan-mini-row:first-child{border-top:0}
+.sr-report .sr-plan-mini-row>i{font-style:normal;width:24px;height:24px;border-radius:7px;background:var(--sr-navy-soft);color:var(--sr-navy);display:grid;place-items:center;font-size:10px;font-weight:500}
+.sr-report .sr-plan-mini-row b{font-weight:500}
+.sr-report .sr-plan-mini-row .sr-status{font-size:9.5px;padding:3px 8px}
+.sr-report .sr-plan-mini-row.voice{grid-template-columns:1fr auto}
+.sr-report .sr-plan-mini-row.voice b{font-size:11px}
+.sr-report .sr-voice-ans{color:var(--sr-red);font-weight:500;font-size:11px}
+.sr-report .sr-plan-mini-more{margin-top:8px;font-size:10.5px;color:var(--sr-muted)}
+.sr-report .sr-plan-mini-empty{padding:12px 14px;background:var(--sr-soft);border-radius:8px;font-size:11.5px;color:var(--sr-muted)}
+.sr-report .sr-plan-fill{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+
+/* ---------- 개선조치 계획 전용 장 (요약 챕터의 둘째 장) ----------
+   요약 한 장에 눌러 담던 것을 독립 장으로 분리했다. 건수 제한 없이 전부 싣고,
+   한 장에 PLAN_PER_PAGE(6)건씩 나눠 담는다. 행은 flex로 페이지 높이를 균등 분배한다. */
+.sr-report .sr-plan2{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.sr-report .sr-plan2-row{flex:1 1 0;min-height:0;display:grid;grid-template-columns:40px 1fr 92px;gap:14px;align-items:center;padding:12px 0;border-top:1px solid var(--sr-line)}
+.sr-report .sr-plan2-row:first-child{border-top:0}
+.sr-report .sr-plan2-row>i{font-style:normal;width:36px;height:36px;border-radius:9px;background:var(--sr-navy-soft);color:var(--sr-navy);display:grid;place-items:center;font-size:12.5px;font-weight:500}
+.sr-report .sr-plan2-text{min-width:0}
+.sr-report .sr-plan2-text b{display:block;font-size:13px;font-weight:500;line-height:1.45}
+.sr-report .sr-plan2-text small{display:block;margin-top:5px;font-size:10.5px;color:var(--sr-muted);line-height:1.6}
+.sr-report .sr-plan2-row .sr-status{font-size:10px;padding:4px 9px;text-align:center}
+/* «담당 / 기한» 칸은 2026-10-07 사용자 요청으로 뺐다(현장에서 쓰지 않음). */
+.sr-report .sr-plan-empty{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;gap:7px;padding:22px 24px;background:var(--sr-soft);border-radius:10px}
+.sr-report .sr-plan-empty b{font-size:15px;font-weight:500}
+.sr-report .sr-plan-empty span{font-size:12px;color:var(--sr-muted);line-height:1.7}
+
+.sr-report .sr-voice-worker{margin:10px 0 4px;font-size:10.5px;font-weight:500;color:var(--sr-navy)}
+.sr-report .sr-voice-worker:first-child{margin-top:0}
+
+/* ---------- TBM 요약: 실시 사진(직접참관) + 항목 목록을 좌우로 나눠 한 장에 담는다 ---------- */
+.sr-report .sr-tbm-split{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:280px 1fr;gap:20px}
+.sr-report .sr-tbm-photo-col{display:flex;flex-direction:column;min-height:0}
+.sr-report .sr-tbm-photo-col .sr-qphoto{flex:1 1 auto;min-height:0}
+.sr-report .sr-tbm-list-col{overflow:hidden}
+.sr-report .sr-plan-mini{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+
+/* 근로자 의견청취 요약: 미흡 응답이 많으면(근로자 여러 명) 넘치지 않게 밀도를 줄인다. */
+.sr-report .sr-voice-fill{flex:1 1 auto;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+.sr-report .sr-voice-fill.dense .sr-plan-mini-row{padding:5px 0;font-size:10.5px}
+.sr-report .sr-voice-fill.dense .sr-voice-worker{margin:7px 0 3px;font-size:9.5px}
+.sr-report .sr-voice-fill.dense2 .sr-plan-mini-row{padding:3px 0;font-size:9.5px}
+.sr-report .sr-voice-fill.dense2 .sr-voice-worker{margin:5px 0 2px;font-size:9px}
+.sr-report .sr-voice-fill.dense2 .sr-voice-ans{font-size:9.5px}
+
+/* ============================================================
+   위 신규 컴포넌트의 PDF 캡처 / 모바일 / 인쇄 보정
+   (파일 앞쪽 @media 규칙보다 뒤에 와야 우선순위가 이긴다)
+   ============================================================ */
+@media(max-width:900px){
+ .sr-report .sr-page,.sr-report .sr-cover2,.sr-report .sr-toc,
+ .sr-report .sr-chapter,.sr-report .sr-detail{height:auto;min-height:0}
+ .sr-report .sr-toc,.sr-report .sr-chapter,.sr-report .sr-detail{flex-direction:column}
+ .sr-report .sr-toc-side,.sr-report .sr-chapter-side{width:100%;height:10px}
+ .sr-report .sr-chapter-side b{display:none}
+ .sr-report .sr-side{width:100%;border-right:0;border-bottom:1px solid var(--sr-line)}
+ .sr-report .sr-toc-list,.sr-report .sr-chapter-sub,.sr-report .sr-split2,
+ .sr-report .sr-sum-box,.sr-report .sr-acc-hist,.sr-report .sr-ba{grid-template-columns:1fr}
+ .sr-report .sr-split2:before{display:none}
+ .sr-report .sr-ladder2{grid-template-columns:1fr 1fr}
+ .sr-report .sr-qphoto{min-height:200px}
+ .sr-report .sr-solo-photo{width:100%;min-height:220px}
+ .sr-report .sr-sum-row{grid-template-columns:1fr;gap:4px}
+ .sr-report .sr-plan2-row{grid-template-columns:1fr;gap:6px}
+ .sr-report .sr-plan2-blank{display:none}
+ .sr-report .sr-toc-main,.sr-report .sr-chapter-main{padding:36px 22px}
+ .sr-report .sr-cover2{padding:36px 22px}
+ .sr-report .sr-cover2 h1{font-size:28px}
+}
+.sr-capture .sr-page,.sr-capture .sr-cover2,.sr-capture .sr-toc,
+.sr-capture .sr-chapter,.sr-capture .sr-detail{height:880px;min-height:880px}
+.sr-capture .sr-toc,.sr-capture .sr-chapter,.sr-capture .sr-detail{flex-direction:row}
+.sr-capture .sr-toc-side,.sr-capture .sr-chapter-side{width:150px;height:auto}
+.sr-capture .sr-chapter-side b{display:block}
+.sr-capture .sr-side{width:268px;border-right:1px solid var(--sr-line);border-bottom:0}
+.sr-capture .sr-toc-list,.sr-capture .sr-chapter-sub,.sr-capture .sr-split2,
+.sr-capture .sr-acc-hist,.sr-capture .sr-ba{grid-template-columns:1fr 1fr}
+.sr-capture .sr-sum-box{grid-template-columns:290px 1fr}
+.sr-capture .sr-split2:before{display:block}
+.sr-capture .sr-split2.one{grid-template-columns:1fr}
+.sr-capture .sr-split2.one:before{display:none}
+.sr-capture .sr-ladder2{grid-template-columns:repeat(5,1fr)}
+.sr-capture .sr-qphoto{min-height:150px}
+.sr-capture .sr-solo-photo{width:58%;min-height:240px}
+.sr-capture .sr-sum-row{grid-template-columns:112px 1fr 74px 116px;gap:12px}
+.sr-capture .sr-plan2-row{grid-template-columns:40px 1fr 92px 108px;gap:14px}
+.sr-capture .sr-plan2-blank{display:block}
+.sr-capture .sr-toc-main,.sr-capture .sr-chapter-main{padding:70px 60px 44px}
+.sr-capture .sr-cover2{padding:64px 60px 44px}
+.sr-capture .sr-cover2 h1{font-size:42px}
+@media print{
+ .sr-report .sr-page,.sr-report .sr-cover2,.sr-report .sr-toc,
+ .sr-report .sr-chapter,.sr-report .sr-detail{height:210mm;min-height:0}
+ .sr-report .sr-toc,.sr-report .sr-chapter,.sr-report .sr-detail{flex-direction:row}
+ .sr-report .sr-toc-side,.sr-report .sr-chapter-side{width:34mm;height:auto}
+ .sr-report .sr-side{width:60mm;border-right:1px solid var(--sr-line);border-bottom:0}
+ .sr-report .sr-toc-list,.sr-report .sr-chapter-sub,.sr-report .sr-split2,
+ .sr-report .sr-acc-hist,.sr-report .sr-ba{grid-template-columns:1fr 1fr}
+ .sr-report .sr-sum-box{grid-template-columns:64mm 1fr}
+ .sr-report .sr-split2.one{grid-template-columns:1fr}
+ .sr-report .sr-split2.one:before{display:none}
+ .sr-report .sr-ladder2{grid-template-columns:repeat(5,1fr)}
+ .sr-report .sr-sum-row{grid-template-columns:24mm 1fr 16mm 25mm;gap:3mm}
+ .sr-report .sr-plan2-row{grid-template-columns:9mm 1fr 20mm 24mm;gap:3mm}
+ .sr-report .sr-plan2-blank{display:block}
+}
+
+/* 머리글은 줄어들지 않게 고정하고, 남는 높이는 본문이 흡수한다 */
+.sr-report .sr-page>.sr-page-head{flex:none}
+/* 사진이 없는 항목(근로자 의견 등)은 빈 사진칸 대신 인용 박스가 높이를 채운다 */
+.sr-report .sr-qquote{flex:1 1 auto;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:18px;background:var(--sr-soft);border-radius:8px;margin-bottom:11px;text-align:center}
+.sr-report .sr-qquote b{font-size:15px;font-weight:500;line-height:1.55}
+.sr-report .sr-qquote small{font-size:10.5px;color:var(--sr-muted);line-height:1.6}
+
+/* ---------- 항목이 많을 때 밀도 조절 (한 장 880px을 넘기지 않기 위한 안전장치) ----------
+   report.js가 항목 수를 보고 dense / dense2 를 붙인다. */
+.sr-report .sr-chapter-sub.dense{gap:7px 40px}
+.sr-report .sr-chapter-sub.dense div{font-size:12.5px}
+.sr-report .sr-chapter-sub.dense em{font-size:9px;padding:2px 7px}
+.sr-report .sr-chapter-sub.dense2{gap:4px 34px}
+.sr-report .sr-chapter-sub.dense2 div{font-size:11.5px}
+.sr-report .sr-chapter-sub.dense2 i{font-size:10.5px;width:20px}
+.sr-report .sr-chapter-sub.dense2 em{font-size:8.5px;padding:1px 6px}
+
+.sr-report .sr-side.dense .sr-side-item{padding:6px 9px;margin-bottom:3px;font-size:10.5px;line-height:1.4}
+.sr-report .sr-side.dense .sr-side-item i{font-size:8.5px;padding:2px 6px}
+.sr-report .sr-side.dense2{padding:18px 13px}
+.sr-report .sr-side.dense2 .sr-side-item{padding:5px 8px;margin-bottom:2px;font-size:9.5px;line-height:1.35}
+.sr-report .sr-side.dense2 .sr-side-item i{font-size:8px;padding:1px 5px}
+.sr-report .sr-side.dense2 .sr-side-foot{font-size:8.5px}

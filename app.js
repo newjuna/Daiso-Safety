@@ -1,6 +1,6 @@
 /* 다이소 안전 · 첫 화면 (로그인 → 팀원 확인 → 업무 고르기) · 팀원 관리 = 조직도 방식 */
 // ★ 화면 버전: 바꿀 때마다 index.html 의 ?v= 와 같이 올림
-const UI_VERSION = '26.10.29 D1.8';
+const UI_VERSION = '26.10.29 D1.9';
 // 고정 마스터 (firestore.rules 와 같은 값 · 화면에서 못 끔)
 const MASTER_EMAILS = ['zxcv6309@gmail.com'];
 

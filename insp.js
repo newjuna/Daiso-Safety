@@ -505,7 +505,8 @@ function iTap(e) {
     case 'missGo': { const m = MISS[Number(v)]; if (!m) return; IC.fix = true; IC.sec = m.kind; if (m.kind === 'work') { IC.wv = 'q'; IC.wi = m.wi; } top = true; break; }
     case 'solReset': { const x = SOLC[Number(v)]; if (x) delete IC.fixTexts[x.key]; toast('자동 문구로 되돌렸어요'); break; }
     case 'submit': case 'subRetry': return submitRun();
-    case 'subBack': SUB = null; IC.sec = 'submit'; top = true; break;
+    case 'subBack': SUB = null; delete IC.pdf; IC.sec = 'submit'; top = true; break;   // 점검을 고치면 보고서를 새로 만들어야 함
+    case 'subNoPdf': if (SUB) SUB.skipPdf = true; return submitRun();
     case 'home': SHEET = ''; IASK = ''; MV = 'home'; render(); return window.scrollTo(0, 0);
     case 'quitAsk': IASK = 'quit'; break;
     case 'quit': { const id = IC.id; milPut(null); PH.clear(id); IC = null; SHEET = ''; IASK = ''; MV = 'home'; toast('점검을 지웠습니다'); render(); return window.scrollTo(0, 0); }
