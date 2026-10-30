@@ -30,6 +30,7 @@ function milView() {
   TITLE.store = MV === 'start' ? '점검 시작' : '매장 밀착지원';
   if (MV === 'start') return milStart();
   if (MV === 'done' && typeof milDone === 'function') return milDone();
+  if (MV === 'dash') return dashView();   // D2.5 대시보드 (dash.js)
   if (MV === 'work') {
     // index.html 이 예전 것(점검 화면 파일을 안 부름)이면 멈추지 말고 새로 고치라고 알려 줌
     if (typeof milWork !== 'function') { frame('<div class="note warn">앱 파일 일부가 예전 버전입니다. 화면을 새로 고쳐 주세요. 그래도 같으면 GitHub에 index.html 이 올라갔는지 확인해 주세요.</div>'); return; }
@@ -45,8 +46,9 @@ function milHome() {
   frame('<div class="hello">' + esc(ME.team) + '<b>' + esc(ME.name) + ' 님</b></div>'
     + (cur ? '<button class="card resume" type="button" id="mResume"><div class="ic red">' + ic('edit') + '</div><div><h3>이어서 하기</h3><p>' + esc(cur.store.name) + ' · ' + esc(dayKo(cur.date)) + '<br>' + esc(typeof inspProgress === 'function' ? inspProgress(cur) : '') + '</p></div><span class="go">' + ic('right', 18) + '</span></button>' : '')
     + '<button class="card" type="button" id="mNew"><div class="ic navy">' + ic('plus') + '</div><div><h3>새 점검 시작</h3><p>매장을 골라 현장점검을 시작해요</p></div></button>'
-    + '<div class="card off"><div class="ic gray">' + ic('chart') + '</div><div><h3>대시보드</h3><p>점검 현황 · 미조치 지적</p></div><span class="tag">준비 중</span></div>');
+    + '<button class="card" type="button" id="mDash"><div class="ic gray">' + ic('chart') + '</div><div><h3>대시보드</h3><p>' + esc((typeof dashBrief === 'function' && dashBrief()) || '점검 현황 · 미조치 지적') + '</p></div><span class="go">' + ic('right', 18) + '</span></button>');
   if (cur) $('mResume').onclick = () => { MV = 'work'; render(); window.scrollTo(0, 0); };
+  $('mDash').onclick = () => { MV = 'dash'; DSC.store = ''; render(); window.scrollTo(0, 0); };
   $('mNew').onclick = () => { MV = 'start'; MSEL = ''; MQ = ''; MASK = ''; MDATE = todayStr(); render(); window.scrollTo(0, 0); };
 }
 

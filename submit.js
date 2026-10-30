@@ -142,6 +142,8 @@ async function submitRun() {
     const rec = buildRecord(sc);
     try { await db.collection('INSPECTIONS').doc(IC.id).set(rec); }
     catch (e) { throw new Error('점검 기록을 저장하지 못했습니다: ' + (e.code === 'permission-denied' ? 'Firebase 규칙(INSPECTIONS)이 아직 안 올라갔을 수 있어요' : (e.message || e.code))); }
+    /* D2.5 대시보드용 짧은 요약 · 못 써도 제출은 그대로 (마스터가 [요약 다시 만들기] 로 채움) */
+    try { await db.collection('INSP_SUM').doc(IC.id).set(dashSum(rec)); DS = null; } catch (e) { console.warn('INSP_SUM', e); }
     SUB.step = 4; render();
     /* D2.2 점검자 본인 Teams 로 결과보고서 알림 (실패해도 제출은 끝난 것 · 결과 화면에 사유만 보여 줌) */
     let teams = '';
