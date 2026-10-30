@@ -2,7 +2,8 @@
  * v4 와 똑같은 보고서: report.js(v4 그대로)가 그릴 자료(snapshot)를 v4 getLandscapeReportSnapshot 과 같은 모양으로 만듦
  * → 화면 밖에 1240×880 장으로 펼쳐 html2canvas 로 찍고 jsPDF 로 묶음 (가로 A4 비율) → 중계로 드라이브 점검 폴더에 저장
  * 사진은 휴대폰 사진 보관함(PH)에서 꺼내 그대로 넣음 (그래서 제출 마무리 전에 만들어야 함)
- * 아직 없는 것: 사고조사 · 조치확인 장(5단계) · 사다리 유형 참고사진
+ * D2.0 사고조사 · 조치확인 장 채움 (조치확인의 지난 점검 사진은 드라이브 사진이라 캡처 불가 → 이번 조치 후 사진만)
+ * 아직 없는 것: 사다리 유형 참고사진
  */
 const RPT_LIBS = {
   h2c: ['https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js', 'https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js'],
@@ -78,16 +79,16 @@ function rptSnapshot(M, sc) {
   const names = IC.tbm.issues.map((x) => x.item), shareGood = !names.includes('최근 사고사례·예방수칙 공유') && !names.includes('위험성평가 결과·현장 위험요인 공유');
   const vq = qs.findIndex((q) => q[0] === 'TBM에서 위험요인을 공유합니까?'), flags = [];
   if (vq >= 0 && shareGood) IC.workers.forEach((wk, i) => { const a = wk.answers && wk.answers[vq]; if (a && qs[vq][1][a.oi] === '공유하지 않음') flags.push({ worker: i + 1, message: "TBM 점검은 '양호'로 체크됐지만 근로자 " + (i + 1) + '은 위험요인 공유를 "공유하지 않음"으로 답했습니다.' }); });
-  const lb = labor(), g = gap(), b = IC.basic;
+  const lb = labor(), g = gap(), b = IC.basic, AS = accSnap(res);   // D2.0 사고조사 · 조치확인 (acc.js)
   return {
     generatedAt: now(), inspectionId: IC.id, submittedAt: now(), inspectionMode: 'new', followupOnly: false, sourceInspectionId: '',
     store: { name: IC.store.name, date: IC.date, inspector: IC.inspector.name, hq: IC.store.division || '', dept: IC.store.dept || '', team: IC.store.team || '' },
-    work, findings, hazards: Object.entries(hazards).sort((a, c) => c[1] - a[1]), accidents: [], workerOpinions,
+    work, findings, hazards: Object.entries(hazards).sort((a, c) => c[1] - a[1]), accidents: AS.accidents, workerOpinions,
     sections: { common: IC.common.issues.length, fire: IC.fire.issues.length, tbm: IC.tbm.issues.length, ladder: IC.ladder.issues.length },
     ladder: { counts: Object.assign({}, IC.ladder.counts), typeStatus: Object.assign({}, IC.ladder.typeStatus) },
     workDetail, checklists: { common: ckSnap('common'), fire: ckSnap('fire'), tbm: ckSnap('tbm') }, ladderDetail, ladderTypeImages: {}, voiceDetail,
-    tasks: [], resultNote: '',
-    score: sc.score, grade: sc.grade, scoreParts: sc.parts, hasAccidentScore: false,
+    tasks: AS.tasks, resultNote: '',
+    score: sc.score, grade: sc.grade, scoreParts: sc.parts, hasAccidentScore: !!sc.hasAccident,
     inboundLabor: lb ? { level: lb.level, avgPeople: Math.round(lb.avgPeople * 10) / 10, gapRatioPct: Math.round(lb.gapRatio * 100) } : null,
     inbound: { delivery: b.delivery || '', boxes: Number(b.inboundBoxes) || 0, start: b.inboundStart || '', end: b.inboundEnd || '', staff: Number(b.inboundStaff) || 0, helpers: Number(b.inboundHelpers) || 0, helperOutAt: b.inboundHelperOutAt || '' },
     transport: { floors: Number(b.floors) || 0, stairs: b.hasStairs === '유' ? '유' : '무', elevator: b.hasElevator === '유' ? '유' : '무', escalator: b.hasEscalator === '유' ? '유' : '무' },

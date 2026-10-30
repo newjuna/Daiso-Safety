@@ -327,3 +327,19 @@ textarea.it{min-height:78px;resize:vertical;line-height:1.55}
 .dl .n{margin-left:auto;font-size:12px;color:var(--sub)}
 .dl b{width:46px;text-align:right}
 a.btn{text-decoration:none}
+/* D2.0 매장 확인 중 · 사고조사 · 조치확인 카드 */
+.spin{display:inline-block;width:30px;height:30px;border:3px solid #fde2e2;border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
+.acx{border:1px solid var(--line);border-radius:14px;margin-top:10px;overflow:hidden;background:#fff}
+.acx.op{border-color:#f5c2c4}
+.acx.dn .ach>svg.i:first-child{color:var(--ok)}
+.ach{display:flex;align-items:center;gap:9px;width:100%;border:0;background:#fff;text-align:left;padding:12px;font-size:14px;color:var(--navy)}
+.ach>svg.i:first-child{color:var(--accent)}
+.ach>span:nth-child(2){flex:1;min-width:0;line-height:1.4}
+.ach small{display:block;font-size:12px;color:var(--sub)}
+.ach>svg.i:last-child{color:#9ca3af}
+.acb{border-top:1px solid #f3f4f6;padding:12px;background:#fcfcfd}
+.acb .past{background:var(--bg);border-radius:10px;padding:9px 11px;font-size:13px;line-height:1.6;color:#374151}
+.acb .lb{margin:12px 2px 6px}
+.acb .seg{flex:none}
+.req{color:var(--accent)}
+a.pht{display:block}

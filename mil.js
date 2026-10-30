@@ -22,7 +22,7 @@ const todayStr = () => new Date().toLocaleDateString('sv-SE');
 const milKey = () => 'ds_mil_v1:' + (ME ? ME.email : '');
 function milGet() { try { return JSON.parse(localStorage.getItem(milKey()) || 'null'); } catch (e) { return null; } }
 function milPut(x) { try { if (x) localStorage.setItem(milKey(), JSON.stringify(x)); else localStorage.removeItem(milKey()); return true; } catch (e) { toast('이 휴대폰에 저장하지 못했습니다 (저장 공간 부족)'); return false; } }
-function milReset() { MV = 'home'; MSEL = ''; MQ = ''; MASK = ''; MORG = { division: '', dept: '', team: '' }; MDATE = todayStr(); }
+function milReset() { if (typeof MCHK !== 'undefined' && MCHK && MCHK.err) MCHK = null; MV = 'home'; MSEL = ''; MQ = ''; MASK = ''; MORG = { division: '', dept: '', team: '' }; MDATE = todayStr(); }
 const dayKo = (d) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || ''); if (!m) return d || ''; return m[1] + '. ' + Number(m[2]) + '. ' + Number(m[3]) + '. (' + '일월화수목금토'[new Date(m[1] + '-' + m[2] + '-' + m[3] + 'T00:00:00').getDay()] + ')'; };
 
 function milView() {
@@ -56,6 +56,7 @@ function milHome() {
 /* ---------- 점검 시작 ---------- */
 const liveStores = () => SD.stores.filter((s) => !s.closed);
 function milStart() {
+  if (MCHK) return milCheckView();
   if (!SD) { frame('<p class="muted">매장 목록 불러오는 중…</p>'); storesLoad(); return; }
   const me = '<div class="me"><div class="av">' + esc(String(ME.name).slice(0, 1)) + '</div><div><b>' + esc(ME.name) + '</b>' + (ME.title ? ' <span class="muted" style="font-size:12.5px">' + esc(ME.title) + '</span>' : '') + '<small>점검자 · 로그인 계정으로 자동</small></div>'
     + '<label class="mdate">' + ic('cal', 15) + '<span>' + esc(dayKo(MDATE)) + '</span><input type="date" id="f_mDate" value="' + esc(MDATE) + '" aria-label="점검일"></label></div>';
@@ -139,16 +140,41 @@ function bindOrg() {
     $('mOrg').innerHTML = milOrg(); bindOrg(); bindPick();
   });
 }
-/* 점검 시작: 기다릴 것이 없어 바로 다음 화면으로 (사고이력 조회는 5단계에서) */
-function milBegin() {
+/* D2.0 점검 시작: 「매장 확인 중」 → 사고 원장(중계) + 지난 미조치(Firebase) 불러오기
+   사고 원장을 못 읽으면 조용히 넘어가지 않고 멈춤 (사고 있는 매장을 사고조사 없이 점검하지 않게 · v4 와 같은 원칙)
+   그래도 현장에서 막히면 [사고이력 없이 시작] (기록에 accSkipped 로 남음) */
+let MCHK = null;   // { name, err }
+function milCheckView() {
+  const c = MCHK;
+  frame('<div class="ready" style="padding-top:70px">' + (c.err
+    ? '<div class="ring red">' + ic('alert', 30) + '</div><h2>매장 확인을 못 했어요</h2><p class="muted">' + esc(c.err) + '</p>'
+      + '<button class="btn red wide" type="button" id="cRe">다시 시도</button>'
+      + '<button class="btn ghost wide" type="button" id="cSkip">사고이력 없이 시작</button>'
+      + '<p class="muted" style="font-size:12px;margin-top:10px">사고이력 없이 시작하면 사고조사 섹션이 빠져요. 사고가 있는 매장이면 나중에 다시 점검해야 할 수 있어요.</p>'
+      + '<button class="btn ghost wide" type="button" id="cBack">' + ic('left', 16) + '매장 다시 고르기</button>'
+    : '<div class="ring red"><span class="spin"></span></div><h2>' + esc(c.name) + ' 확인 중</h2><p class="muted">사고이력과 지난 점검의 미조치 지적을 불러오고 있어요.</p>') + '</div>');
+  if (c.err) { $('cRe').onclick = () => milBegin(false); $('cSkip').onclick = () => milBegin(true); $('cBack').onclick = () => { MCHK = null; render(); }; }
+}
+async function milBegin(skipAcc) {
   const s = SD.stores.find((x) => x.id === MSEL); if (!s) return;
+  if (skipAcc !== true) skipAcc = false;
+  MASK = ''; MCHK = { name: s.name, err: '' }; render(); window.scrollTo(0, 0);
+  let acc = [], open = [];
+  try {
+    if (!skipAcc) acc = await storeAccidents(s.name);
+    open = await openIssuesOf(s.id);
+  } catch (e) { MCHK = { name: s.name, err: e.message || String(e) }; return render(); }
+  MCHK = null;
   const o = orgOf(s), old = milGet();
   if (old && typeof PH !== 'undefined') PH.clear(old.id);   // 지운 점검의 사진도 같이 지움
-  const cur = { id: newId('I'), date: MDATE, startedAt: now(), screen: 'work',
+  const cur = { id: newId('I'), date: MDATE, startedAt: now(),
     store: { id: s.id, name: s.name, team: s.team, dept: o.dept, division: o.division, type: s.type },
-    inspector: { email: ME.email, name: ME.name, title: ME.title || '' } };
+    inspector: { email: ME.email, name: ME.name, title: ME.title || '' },
+    accidents: accBuild(acc), tasks: taskBuild(open), accSkipped: skipAcc };
+  cur.sec = cur.accidents.length ? 'accident' : 'work';
   if (!milPut(cur)) return;
-  MASK = ''; MV = 'work'; render(); window.scrollTo(0, 0);
+  if (cur.accidents.length || cur.tasks.length) toast([cur.accidents.length ? '사고이력 ' + cur.accidents.length + '건' : '', cur.tasks.length ? '지난 미조치 ' + cur.tasks.length + '건' : ''].filter(Boolean).join(' · ') + '이 있어요');
+  MV = 'work'; render(); window.scrollTo(0, 0);
 }
 
 /* 점검 화면 (milWork) 은 insp.js (D1.7~) */

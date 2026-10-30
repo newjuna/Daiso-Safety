@@ -4,7 +4,7 @@
  *            → ③ 점검 기록 저장 (Firebase INSPECTIONS/점검ID · 답 · 사진 링크 · 해결방안 · 점수 · 보고서 링크)
  *            → ④ 마무리 (휴대폰에 둔 사진 · 진행 중 점검 지우기) → 결과 화면 (점수는 여기서 처음 보여 줌)
  * 중간에 끊기면 [다시 시도] = 멈춘 곳부터 (올라간 사진은 IC.up 에 적어 둬서 다시 안 올림)
- * 점수 계산은 v4 scoreSummary 그대로 (사고이력이 아직 없으니 사고 배점은 작업점검으로 옮김)
+ * 점수 계산은 v4 scoreSummary 그대로 (D2.0 사고 배점 포함 · 확인한 사고가 없으면 작업점검으로 옮김)
  */
 let LAST = null;   // 결과 화면에 보여 줄 것 (앱을 닫으면 사라짐 · 기록은 Firebase 에 있음)
 
@@ -33,10 +33,12 @@ function scoreTbm() { const c = MD.scoring.tbmConfidence[IC.tbm.confirmMethod ||
 function scoreAll() {
   const w = Object.assign({}, MD.scoring.categoryWeights);
   const parts = { work: scoreWork(), ladder: scoreLadder(), common: scoreList(MD.common, IC.common.issues, IC.common.naItems), fire: scoreList(MD.fire, IC.fire.issues, IC.fire.naItems), tbm: scoreTbm() };
-  w.work += w.accident; w.accident = 0;   // 사고이력 연결 전 (5단계에서 사고 배점 사용)
-  let tot = 0, ws = 0; Object.keys(parts).forEach((k) => { tot += parts[k] * w[k]; ws += w[k]; });
+  /* D2.0 사고 배점: 확인한 사고가 있으면 사용 · 없거나 전부 확인 못함이면 v4 처럼 작업점검으로 옮김 */
+  const acc = scoreAccident();
+  if (acc == null) { w.work += w.accident; w.accident = 0; } else parts.accident = acc;
+  let tot = 0, ws = 0; Object.keys(parts).forEach((k) => { if (!w[k]) return; tot += parts[k] * w[k]; ws += w[k]; });
   const score = Math.round(tot / ws);
-  return { score, grade: score >= 90 ? 'A' : score >= 70 ? 'B' : score >= 50 ? 'C' : 'D', parts, weights: w, hasAccident: false };
+  return { score, grade: score >= 90 ? 'A' : score >= 70 ? 'B' : score >= 50 ? 'C' : 'D', parts, weights: w, hasAccident: acc != null };
 }
 
 /* ---------- 올릴 사진 목록 (지금 화면에 살아 있는 사진만 · 파일 이름 = 순서 번호 · 섹션 · 항목 · 장 번호) ---------- */
@@ -47,6 +49,13 @@ function photoJobs() {
   [['common', '3 공통·시설'], ['fire', '4 소방']].forEach(([k, g]) => IC[k].issues.forEach((x) => add(x.files, g + ' · ' + x.item)));
   if (IC.tbm.confirmMethod !== '인터뷰만') add(IC.tbm.photoFiles, '5 TBM · 실시 사진');
   IC.others.forEach((x, j) => add(x.files, '6 기타사항 ' + (j + 1)));
+  /* D2.0 번호는 보고서 장 번호와 같게 (08 조치확인 · 09 사고조사) */
+  (IC.tasks || []).forEach((x, j) => { if (x.status === '조치완료' && !x.notObserved) add(x.afterFiles, '8 조치확인 ' + (j + 1) + ' · ' + x.title + ' · 조치 후'); });
+  (IC.accidents || []).forEach((x, j) => {
+    if (x.notObserved) return;
+    const lb = '9 사고조사 ' + (j + 1) + ' · ' + x.date + ' ' + x.type;
+    add(x.beforeFiles, lb + ' · 현재 상태'); if (x.status === '조치완료') add(x.afterFiles, lb + ' · 조치 후');
+  });
   return J;
 }
 async function relay(action, body) {
@@ -71,8 +80,10 @@ function buildRecord(sc) {
   ['common', 'fire', 'tbm'].forEach((k) => d[k].issues.forEach((x) => { x.files = upFiles(x.files); }));
   d.tbm.photoFiles = d.tbm.confirmMethod !== '인터뷰만' ? upFiles(d.tbm.photoFiles) : [];
   d.others.forEach((x) => { x.files = upFiles(x.files); });
+  d.accidents = JSON.parse(JSON.stringify(IC.accidents || [])).map((x) => Object.assign(x, { beforeFiles: x.notObserved ? [] : upFiles(x.beforeFiles), afterFiles: x.notObserved || x.status !== '조치완료' ? [] : upFiles(x.afterFiles) }));
+  d.tasks = JSON.parse(JSON.stringify(IC.tasks || [])).map((x) => Object.assign(x, { afterFiles: x.notObserved || x.status !== '조치완료' ? [] : upFiles(x.afterFiles) }));
   const items = solItems(), photos = photoJobs().filter((j) => IC.up[j.id] && IC.up[j.id].fileId).length;
-  return JSON.parse(JSON.stringify({
+  const rec = JSON.parse(JSON.stringify({
     id: IC.id, status: 'submitted', ui: UI_VERSION,
     date: IC.date, startedAt: IC.startedAt || '', submittedAt: now(),
     storeId: IC.store.id || '', storeName: IC.store.name, team: IC.store.team || '', dept: IC.store.dept || '', division: IC.store.division || '', storeType: IC.store.type || '',
@@ -81,10 +92,14 @@ function buildRecord(sc) {
     pdfId: (IC.pdf && IC.pdf.fileId) || '', pdfUrl: (IC.pdf && IC.pdf.url) || '', pdfPages: (IC.pdf && IC.pdf.pages) || 0,
     score: sc.score, grade: sc.grade, parts: sc.parts, weights: sc.weights,
     labor: labor(), stretchGap: gap(),
-    counts: { issues: items.length, photos, workRisk: items.filter((x) => x.group === '작업점검').length, ladder: IC.ladder.issues.length, common: IC.common.issues.length, fire: IC.fire.issues.length, tbm: IC.tbm.issues.length, workers: IC.workers.length, others: IC.others.length },
+    counts: { issues: items.length, photos, workRisk: items.filter((x) => x.group === '작업점검').length, ladder: IC.ladder.issues.length, common: IC.common.issues.length, fire: IC.fire.issues.length, tbm: IC.tbm.issues.length, workers: IC.workers.length, others: IC.others.length,
+      accidents: (IC.accidents || []).length, accOpen: (IC.accidents || []).filter((x) => x.status === '미조치').length, tasks: (IC.tasks || []).length, tasksOpen: (IC.tasks || []).filter((x) => x.status !== '조치완료').length },
+    accSkipped: !!IC.accSkipped,
     issues: items.map((x) => ({ key: x.key, group: x.group, area: x.area, title: x.title, detail: x.detail, fix: fixOf(x), edited: isEd(x.key), photos: upFiles(x.files).map((f) => f.url) })),
     data: d
   }));
+  rec.openNext = JSON.parse(JSON.stringify(openNextOf(rec)));   // D2.0 다음 점검의 조치확인
+  return rec;
 }
 
 /* ---------- 제출 진행 ---------- */
@@ -165,7 +180,8 @@ function milDone() {
   TITLE.store = '점검 완료';
   const nm = { work: '작업점검', ladder: '사다리', common: '공통·시설', fire: '소방', tbm: 'TBM' };
   const cn = { work: L.counts.workRisk, ladder: L.counts.ladder, common: L.counts.common, fire: L.counts.fire, tbm: L.counts.tbm };
-  const rows = Object.keys(nm).map((k) => '<div><span>' + nm[k] + '</span><span class="n">' + (cn[k] ? '지적 ' + cn[k] : '지적 없음') + '</span><b>' + L.sc.parts[k] + '점</b></div>').join('');
+  if (L.sc.parts.accident != null) { nm.accident = '사고조사'; cn.accident = L.counts.accOpen; }
+  const rows = Object.keys(nm).map((k) => '<div><span>' + nm[k] + '</span><span class="n">' + (k === 'accident' ? (cn[k] ? '미조치 ' + cn[k] : '모두 조치') : cn[k] ? '지적 ' + cn[k] : '지적 없음') + '</span><b>' + L.sc.parts[k] + '점</b></div>').join('');
   frame('<div class="dn"><div class="ring">' + ic('check', 30) + '</div><h2>' + esc(L.store) + ' 점검 완료</h2><p class="muted">' + esc(dayKo(L.date)) + ' · ' + esc(L.inspector) + '</p></div>'
     + '<div class="dsum"><div>종합 점수<b>' + L.sc.score + '</b><small>' + L.sc.grade + '등급</small></div><div class="r">지적사항<b>' + L.issues + '</b><small>건</small></div><div>사진<b>' + L.photos + '</b><small>장</small></div></div>'
     + '<div class="dl">' + rows + '</div>'

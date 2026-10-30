@@ -17,9 +17,11 @@ Object.assign(ICON, {
   circle: '<circle cx="12" cy="12" r="9"/>'
 });
 
-const SEC = ['work', 'ladder', 'common', 'fire', 'tbm', 'voice', 'other'];
-const NEED = ['work', 'ladder', 'common', 'fire', 'tbm', 'voice'];   // 꼭 마쳐야 제출되는 섹션 (기타사항은 선택)
-const SNM = { work: '작업점검', ladder: '사다리', common: '공통·시설', fire: '소방', tbm: 'TBM', voice: '의견청취', other: '기타사항', submit: '제출 전 확인' };
+const BASE_SEC = ['work', 'ladder', 'common', 'fire', 'tbm', 'voice', 'other'];
+/* D2.0 사고이력이 있으면 맨 앞에 사고조사, 지난 미조치가 있으면 맨 뒤에 조치확인 (acc.js) */
+const secs = () => ((IC && IC.accidents && IC.accidents.length) ? ['accident'] : []).concat(BASE_SEC, (IC && IC.tasks && IC.tasks.length) ? ['tasks'] : []);
+const needs = () => secs().filter((k) => k !== 'other');   // 꼭 마쳐야 제출되는 섹션 (기타사항은 선택)
+const SNM = { accident: '사고조사', tasks: '조치확인', work: '작업점검', ladder: '사다리', common: '공통·시설', fire: '소방', tbm: 'TBM', voice: '의견청취', other: '기타사항', submit: '제출 전 확인' };
 /* 입고·하차 기본값 (v4 와 같음 · 흔한 값을 미리 넣고 눌러서 고침) */
 const INB = { delivery: '오전', inboundStart: '07:00', inboundEnd: '09:00', inboundStaff: '3', inboundHelpers: '2', inboundHelperOutAt: '09:00', inboundBoxes: '200' };
 const LVN = { good: '양호', minor: '위험(경미)', severe: '위험(심각)' }, LVC = { good: 'g', minor: 'w', severe: 'r' };
@@ -47,6 +49,7 @@ function inspNorm(c) {
   c.worker = Math.min(Math.max(0, c.worker || 0), c.workers.length - 1);
   c.others = Array.isArray(c.others) ? c.others : [];
   c.fixTexts = c.fixTexts || {}; c.fix = !!c.fix;
+  c.accidents = Array.isArray(c.accidents) ? c.accidents : []; c.tasks = Array.isArray(c.tasks) ? c.tasks : [];
   return c;
 }
 function inspCur() { const s = milGet(); if (!s) { IC = null; return null; } if (!IC || IC.id !== s.id) IC = inspNorm(s); return IC; }
@@ -97,10 +100,13 @@ function secDone(k) {
   if (k === 'ladder') return ['good', 'bad', 'na'].includes(IC.ladder.status);
   if (k === 'voice') return voiceDone();
   if (k === 'common' || k === 'fire' || k === 'tbm') return ['good', 'bad'].includes(IC[k].status);
+  if (k === 'accident') return IC.accidents.length > 0 && IC.accidents.every(accDone);
+  if (k === 'tasks') return IC.tasks.length > 0 && IC.tasks.every(tkDone);
   return false;
 }
 function missing() {
   const M = [];
+  const ua = IC.accidents.filter((x) => !accDone(x)).length; if (ua) M.push({ kind: 'accident', label: '사고조사 · 미작성 ' + ua + '건' });
   MD.works.forEach((w, wi) => {
     if (IC.workNA[wi]) return;
     const ib = isInb(wi) && !inbOk(), tr = isTr(wi) && !trOk();
@@ -109,6 +115,7 @@ function missing() {
   if (!secDone('ladder')) M.push({ kind: 'ladder', label: '사다리' });
   ['common', 'fire', 'tbm'].forEach((k) => { if (!secDone(k)) M.push({ kind: k, label: SNM[k] }); });
   if (!voiceDone()) M.push({ kind: 'voice', label: '의견청취' });
+  const ut = IC.tasks.filter((x) => !tkDone(x)).length; if (ut) M.push({ kind: 'tasks', label: '조치확인 · 미작성 ' + ut + '건' });
   return M;
 }
 
@@ -194,6 +201,7 @@ function filesAt(p) {
   else if (k === 'ld') o = IC.ladder.issues.find((x) => x.id === a);
   else if (k === 'ck') o = IC[a] && IC[a].issues.find((x) => x.id === b);
   else if (k === 'ot') o = IC.others.find((x) => x.id === a);
+  else if (k === 'ac' || k === 'tk') return accFiles(k, Number(a), b);
   if (!o) return null; o.files = o.files || []; return o.files;
 }
 const sheetWrap = (inner) => '<div class="ish" id="ish"><div class="ishd" role="dialog"><div class="grab"></div>' + inner + '</div></div>';
@@ -205,8 +213,9 @@ const fixed = () => IC.fix ? '확인 · 누락 목록으로' : '';
 function milWork() {
   if (!inspCur()) { MV = 'home'; return render(); }
   TITLE.store = IC.store.name;
+  if (!secs().includes(IC.sec) && IC.sec !== 'submit') IC.sec = 'work';
   const k = IC.sec;
-  const v = SUB ? vProgress() : k === 'work' ? (IC.wv === 'q' ? vWorkQ() : vWorkList()) : k === 'ladder' ? vLadder() : (k === 'common' || k === 'fire' || k === 'tbm') ? vCheck(k) : k === 'voice' ? vVoice() : k === 'other' ? vOther() : vSubmit();
+  const v = SUB ? vProgress() : k === 'accident' ? vAccident() : k === 'tasks' ? vTasks() : k === 'work' ? (IC.wv === 'q' ? vWorkQ() : vWorkList()) : k === 'ladder' ? vLadder() : (k === 'common' || k === 'fire' || k === 'tbm') ? vCheck(k) : k === 'voice' ? vVoice() : k === 'other' ? vOther() : vSubmit();
   const sh = SUB ? '' : SHEET === 'toc' ? tocSheet() : SHEET === 'guide' ? guideSheet() : SHEET.indexOf('pv:') === 0 ? pvSheet(SHEET.slice(3)) : '';
   const fb = IC.fix && k !== 'submit' ? '<div class="ifix">' + ic('alert', 17) + '<span><b>누락 보완 중</b> · 이 화면을 마치면 누락 목록으로 돌아가요</span><button type="button" class="b sm" data-a="goSec" data-v="submit">목록</button></div>' : '';
   frame((SUB ? '' : secBar() + fb) + '<div class="ib">' + v.html + '</div>' + navBar(v.prev, v.next) + sh);
@@ -215,8 +224,8 @@ function milWork() {
   if (Date.now() - FLASH < 700) flash();
 }
 function secBar() {
-  const i = SEC.indexOf(IC.sec), dn = NEED.filter(secDone).length;
-  return '<div class="isb"><b>' + SNM[IC.sec] + '</b><span class="n">' + (i >= 0 ? (i + 1) + '/' + SEC.length : '') + '</span><div class="pg" title="필수 ' + dn + '/' + NEED.length + ' 완료"><i style="width:' + Math.round(dn / NEED.length * 100) + '%"></i></div>'
+  const S = secs(), N = needs(), i = S.indexOf(IC.sec), dn = N.filter(secDone).length;
+  return '<div class="isb"><b>' + SNM[IC.sec] + '</b><span class="n">' + (i >= 0 ? (i + 1) + '/' + S.length : '') + '</span><div class="pg" title="필수 ' + dn + '/' + N.length + ' 완료"><i style="width:' + Math.round(dn / N.length * 100) + '%"></i></div>'
     + '<button type="button" class="dd" data-a="toc">목차' + ic('down', 14) + '</button></div>';
 }
 function navBar(p, n) {
@@ -237,7 +246,7 @@ function vWorkList() {
   const nx = MD.works.findIndex((w, i) => !IC.workNA[i] && !IC.workChecked[i]);
   return {
     html: '<div class="ih">작업점검<span class="ihn">작업 ' + MD.works.length + '종</span></div><div class="ihs">작업을 누르면 문항이 열려요. 좋은 답이 미리 골라져 있어서 현장과 다른 것만 바꾸면 돼요.</div><div class="wl">' + rows + '</div>',
-    prev: null,
+    prev: IC.accidents.length ? { t: '사고조사', a: 'goSec', v: 'accident' } : null,
     next: nx >= 0 ? { t: (Object.keys(IC.workChecked).length ? '이어서 · ' : '시작 · ') + MD.works[nx][0], a: 'wOpen', v: nx } : { t: '다음 · 사다리', a: 'goSec', v: 'ladder' }
   };
 }
@@ -320,7 +329,7 @@ function ldNext() {
 
 /* ---------- 공통·시설 / 소방 / TBM ---------- */
 function vCheck(k) {
-  const st = IC[k], list = MD[k], bad = st.issues.length, i = SEC.indexOf(k);
+  const st = IC[k], list = MD[k], bad = st.issues.length, SEC = secs(), i = SEC.indexOf(k);
   let h = '<div class="ih">' + SNM[k] + '<span class="ihn">' + list.length + '문항</span>' + (bad ? '<span class="ibg r">미흡 ' + bad + '</span>' : '<span class="ibg g">모두 양호</span>') + '</div>'
     + '<div class="ihs">양호가 미리 골라져 있어요. 현장과 다른 항목만 미흡으로 바꿔 주세요.</div>'
     + (k !== 'tbm' ? '<div class="itools"><button type="button" class="b sm" data-a="guide">' + ic('book', 15) + '점검 가이드</button></div>' : '');
@@ -381,13 +390,14 @@ function vOther() {
       + strip('ot.' + x.id, x.files) + '</div>';
   }).join('');
   h += '<button type="button" class="btn ghost wide" data-a="oAdd">' + ic('plus', 16) + (IC.others.length ? '한 건 더' : '기타사항 추가') + '</button>';
-  return { html: h, prev: { t: '의견청취', a: 'goSec', v: 'voice' }, next: { t: '다음 · 제출 전 확인', a: 'goSec', v: 'submit' } };
+  const tk = IC.tasks.length && !IC.fix;
+  return { html: h, prev: { t: '의견청취', a: 'goSec', v: 'voice' }, next: { t: tk ? '다음 · 조치확인' : '다음 · 제출 전 확인', a: 'goSec', v: tk ? 'tasks' : 'submit' } };
 }
 
 /* ---------- 제출 전 확인 → 해결방안 확인 ---------- */
 function vSubmit() {
   IC.fix = false; MISS = missing();
-  const pv = { t: '기타사항', a: 'goSec', v: 'other' };
+  const lastS = secs().slice(-1)[0], pv = { t: SNM[lastS], a: 'goSec', v: lastS };
   if (MISS.length) return {
     html: '<div class="ih">제출 전 확인</div><div class="ihs">아직 마치지 않은 점검이 <b>' + MISS.length + '개</b> 있어요. 누르면 그 화면으로 가고, 마치면 여기로 돌아와요.</div>'
       + '<div class="ms">' + MISS.map((m, j) => '<button type="button" data-a="missGo" data-v="' + j + '">' + ic('alert', 18) + '<span>' + esc(m.label) + '</span>' + ic('right', 16) + '</button>').join('') + '</div>',
@@ -419,11 +429,13 @@ function secInfo(k) {
   if (k === 'common' || k === 'fire' || k === 'tbm') return IC[k].status ? (IC[k].issues.length ? '미흡 ' + IC[k].issues.length : '모두 양호') : MD[k].length + '문항';
   if (k === 'voice') return '근로자 ' + IC.workers.length + '명';
   if (k === 'other') return IC.others.length ? IC.others.length + '건' : '선택';
+  if (k === 'accident') return IC.accidents.filter(accDone).length + ' / ' + IC.accidents.length + '건';
+  if (k === 'tasks') return IC.tasks.filter(tkDone).length + ' / ' + IC.tasks.length + '건';
   return '';
 }
 function tocSheet() {
   const row = (k) => { const dn = secDone(k), on = IC.sec === k; return '<button type="button" class="tc' + (on ? ' on' : dn ? ' dn' : '') + '" data-a="goSec" data-v="' + k + '">' + ic(on ? 'dotc' : dn ? 'checkc' : 'circle', 19) + '<span>' + SNM[k] + '</span><span class="r">' + secInfo(k) + '</span></button>'; };
-  return sheetWrap('<h3>점검 목차<button type="button" class="b sm" data-a="shut">닫기</button></h3>' + SEC.map(row).join('')
+  return sheetWrap('<h3>점검 목차<button type="button" class="b sm" data-a="shut">닫기</button></h3>' + secs().map(row).join('')
     + '<button type="button" class="btn red wide" data-a="goSec" data-v="submit">' + ic('send', 16) + '제출 전 확인으로</button>'
     + '<div class="tcx"><button type="button" class="tc" data-a="home">' + ic('home', 19) + '<span>밀착지원 처음으로</span><span class="r">점검은 그대로 저장</span></button>'
     + (IASK === 'quit' ? '<div class="ask">이 점검을 지울까요? 이 휴대폰에 저장된 내용과 사진이 모두 없어져요.<div class="fbtn"><button class="b red" type="button" data-a="quit">지우기</button><button class="b" type="button" data-a="askNo">취소</button></div></div>'
@@ -453,7 +465,7 @@ const pvSheet = (id) => '<div class="pvw" id="ish"><img data-ph="' + esc(id) + '
    ===================================================================== */
 function toNext(k) {
   if (IC.fix) IC.sec = 'submit';
-  else { IC.sec = SEC[SEC.indexOf(k) + 1] || 'submit'; if (IC.sec === 'work') IC.wv = 'list'; }
+  else { const S = secs(); IC.sec = S[S.indexOf(k) + 1] || 'submit'; if (IC.sec === 'work') IC.wv = 'list'; }
   IASK = ''; isave(); render(); window.scrollTo(0, 0);
 }
 function iTap(e) {
@@ -502,7 +514,10 @@ function iTap(e) {
       if (L) { const j = L.findIndex((f) => f.id === id); if (j >= 0) L.splice(j, 1); }
       PH.del([id]); break;
     }
-    case 'missGo': { const m = MISS[Number(v)]; if (!m) return; IC.fix = true; IC.sec = m.kind; if (m.kind === 'work') { IC.wv = 'q'; IC.wi = m.wi; } top = true; break; }
+    case 'missGo': { const m = MISS[Number(v)]; if (!m) return; IC.fix = true; IC.sec = m.kind; if (m.kind === 'work') { IC.wv = 'q'; IC.wi = m.wi; }
+      if (m.kind === 'accident') { const x = IC.accidents.find((y) => !accDone(y)); IC.accOpen = x ? x.key : ''; }
+      if (m.kind === 'tasks') { const x = IC.tasks.find((y) => !tkDone(y)); IC.tkOpen = x ? x.tkey : ''; }
+      top = true; break; }
     case 'solReset': { const x = SOLC[Number(v)]; if (x) delete IC.fixTexts[x.key]; toast('자동 문구로 되돌렸어요'); break; }
     case 'submit': case 'subRetry': return submitRun();
     case 'subBack': SUB = null; delete IC.pdf; IC.sec = 'submit'; top = true; break;   // 점검을 고치면 보고서를 새로 만들어야 함
@@ -510,7 +525,7 @@ function iTap(e) {
     case 'home': SHEET = ''; IASK = ''; MV = 'home'; render(); return window.scrollTo(0, 0);
     case 'quitAsk': IASK = 'quit'; break;
     case 'quit': { const id = IC.id; milPut(null); PH.clear(id); IC = null; SHEET = ''; IASK = ''; MV = 'home'; toast('점검을 지웠습니다'); render(); return window.scrollTo(0, 0); }
-    default: return;
+    default: if (!accTap(a, v)) return; top = a === 'accFin' || a === 'tkFin';
   }
   if (!UI_ONLY.has(a)) isave();
   render(); if (top) window.scrollTo(0, 0);
@@ -537,6 +552,7 @@ function iInp(e) {
   if (k === 'ot') { const o = IC.others.find((x) => x.id === id); if (o) o.text = v; }
   else if (k === 'ln') { const o = IC.ladder.issues.find((x) => x.id === id); if (o) o.note = v; }
   else if (k === 'vt') { const a = IC.workers[IC.worker].answers[Number(id)]; if (a) a.text = v; }
+  else if (k === 'ah' || k === 'aa' || k === 'ts' || k === 'ta') { if (!accInp(k, Number(id), v)) return; }
   else if (k === 'fx') { const x = SOLC[Number(id)]; if (x) { const t = v.trim(); if (t) IC.fixTexts[x.key] = t; else delete IC.fixTexts[x.key]; } }
   else return;
   isave();
